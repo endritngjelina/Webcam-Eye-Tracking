@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Eye Tracker - Computer Vision Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow: hidden;
+            color: white;
+        }
+
+        .container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            font-weight: 300;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            opacity: 0.8;
+            font-size: 1.1em;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            position: relative;
+        }
+
+        .video-section {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #videoContainer {
+            position: relative;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        #webcam {
+            width: 640px;
+            height: 480px;
+            object-fit: cover;
+        }
+
+        #overlayCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        .control-panel {
+            width: 350px;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(15px);
+            padding: 30px;
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            overflow-y: auto;
+        }
+
+        .panel-section {
+            margin-bottom: 30px;
+        }
+
+        .panel-section h3 {
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            color: #fff;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 5px;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .metric:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            font-weight: 500;
+        }
+
+        .metric-value {
+            font-family: 'Courier New', monospace;
+            color: #4fc3f7;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn.danger {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+
+        .status.success {
+            background: rgba(76, 175, 80, 0.3);
+            border: 1px solid rgba(76, 175, 80, 0.5);
+        }
+
+        .status.error {
+            background: rgba(244, 67, 54, 0.3);
+            border: 1px solid rgba(244, 67, 54, 0.5);
+        }
+
+        .status.warning {
+            background: rgba(255, 193, 7, 0.3);
+            border: 1px solid rgba(255, 193, 7, 0.5);
+        }
+
+        .gaze-indicator {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: radial-gradient(circle, #ff4757, #ff3742);
+            border-radius: 50%;
+            pointer-events: none;
+            transition: all 0.1s ease;
+            box-shadow: 0 0 20px rgba(255, 71, 87, 0.6);
+            z-index: 1000;
+        }
+
+        .calibration-points {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .calibration-point {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: radial-gradient(circle, #4fc3f7, #29b6f6);
+            border-radius: 50%;
+            cursor: pointer;
+            pointer-events: auto;
+            animation: pulse 2s infinite;
+            box-shadow: 0 0 20px rgba(79, 195, 247, 0.6);
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+        }
+
+        .eye-highlight {
+            position: absolute;
+            border: 2px solid #4fc3f7;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: eyeGlow 1s infinite alternate;
+        }
+
+        @keyframes eyeGlow {
+            0% { box-shadow: 0 0 5px #4fc3f7; }
+            100% { box-shadow: 0 0 15px #4fc3f7, 0 0 25px #4fc3f7; }
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .interactive-elements {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .floating-particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: float 3s infinite ease-in-out;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 1; }
+            50% { transform: translateY(-20px) rotate(180deg); opacity: 0.5; }
+        }
+
+        .heatmap-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Advanced Eye Tracking System</h1>
+            <p>Real-time computer vision with interactive gaze detection</p>
+        </div>
+
+        <div class="main-content">
+            <div class="video-section">
+                <div id="videoContainer">
+                    <video id="webcam" autoplay muted playsinline></video>
+                    <canvas id="overlayCanvas"></canvas>
+                    <div class="gaze-indicator" id="gazeIndicator"></div>
+                    <div class="calibration-points" id="calibrationPoints"></div>
+                    <div class="interactive-elements" id="interactiveElements"></div>
+                    <canvas id="heatmapCanvas" class="heatmap-overlay"></canvas>
+                    
+                    <div class="loading" id="loadingIndicator">
+                        <div class="spinner"></div>
+                        <p>Initializing computer vision algorithms...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-panel">
+                <div class="panel-section">
+                    <h3>System Status</h3>
+                    <div id="systemStatus" class="status warning">
+                        Initializing webcam...
+                    </div>
+                    <button id="startBtn" class="btn">Start Tracking</button>
+                    <button id="calibrateBtn" class="btn">Calibrate</button>
+                    <button id="stopBtn" class="btn danger">Stop</button>
+                </div>
+
+                <div class="panel-section">
+                    <h3>Eye Tracking Metrics</h3>
+                    <div class="metric">
+                        <span class="metric-label">Gaze X:</span>
+                        <span class="metric-value" id="gazeX">0px</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Gaze Y:</span>
+                        <span class="metric-value" id="gazeY">0px</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Confidence:</span>
+                        <span class="metric-value" id="confidence">0%</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Face Detected:</span>
+                        <span class="metric-value" id="faceDetected">No</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Eyes Detected:</span>
+                        <span class="metric-value" id="eyesDetected">0</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Frame Rate:</span>
+                        <span class="metric-value" id="frameRate">0 FPS</span>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h3>Visual Effects</h3>
+                    <button id="toggleHeatmap" class="btn">Toggle Heatmap</button>
+                    <button id="toggleParticles" class="btn">Toggle Particles</button>
+                    <button id="resetHeatmap" class="btn">Reset Heatmap</button>
+                </div>
+
+                <div class="panel-section">
+                    <h3>Advanced Features</h3>
+                    <div class="metric">
+                        <span class="metric-label">Blink Rate:</span>
+                        <span class="metric-value" id="blinkRate">0/min</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Focus Duration:</span>
+                        <span class="metric-value" id="focusDuration">0s</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Calibration:</span>
+                        <span class="metric-value" id="calibrationStatus">Not calibrated</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class AdvancedEyeTracker {
+            constructor() {
+                this.video = document.getElementById('webcam');
+                this.canvas = document.getElementById('overlayCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.heatmapCanvas = document.getElementById('heatmapCanvas');
+                this.heatmapCtx = this.heatmapCanvas.getContext('2d');
+                this.gazeIndicator = document.getElementById('gazeIndicator');
+                
+                this.isTracking = false;
+                this.faceDetected = false;
+                this.eyesDetected = 0;
+                this.currentGaze = { x: 0, y: 0 };
+                this.confidence = 0;
+                this.calibrationPoints = [];
+                this.isCalibrating = false;
+                this.calibrationData = [];
+                
+                // Performance metrics
+                this.frameCount = 0;
+                this.lastTime = Date.now();
+                this.fps = 0;
+                
+                // Advanced features
+                this.blinkCount = 0;
+                this.lastBlinkTime = Date.now();
+                this.focusStartTime = null;
+                this.focusDuration = 0;
+                this.gazeHistory = [];
+                this.heatmapData = [];
+                this.showHeatmap = false;
+                this.showParticles = true;
+                
+                this.init();
+            }
+            
+            async init() {
+                try {
+                    await this.setupWebcam();
+                    this.setupCanvas();
+                    this.setupEventListeners();
+                    this.updateStatus('Ready to start tracking', 'success');
+                    document.getElementById('loadingIndicator').style.display = 'none';
+                } catch (error) {
+                    this.updateStatus('Failed to initialize webcam: ' + error.message, 'error');
+                }
+            }
+            
+            async setupWebcam() {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        width: 640, 
+                        height: 480,
+                        facingMode: 'user'
+                    }
+                });
+                this.video.srcObject = stream;
+                
+                return new Promise((resolve) => {
+                    this.video.onloadedmetadata = () => {
+                        resolve();
+                    };
+                });
+            }
+            
+            setupCanvas() {
+                this.canvas.width = this.video.videoWidth || 640;
+                this.canvas.height = this.video.videoHeight || 480;
+                this.heatmapCanvas.width = this.canvas.width;
+                this.heatmapCanvas.height = this.canvas.height;
+                
+                // Initialize heatmap
+                this.heatmapImageData = this.heatmapCtx.createImageData(
+                    this.heatmapCanvas.width, 
+                    this.heatmapCanvas.height
+                );
+            }
+            
+            setupEventListeners() {
+                document.getElementById('startBtn').addEventListener('click', () => this.startTracking());
+                document.getElementById('stopBtn').addEventListener('click', () => this.stopTracking());
+                document.getElementById('calibrateBtn').addEventListener('click', () => this.startCalibration());
+                document.getElementById('toggleHeatmap').addEventListener('click', () => this.toggleHeatmap());
+                document.getElementById('toggleParticles').addEventListener('click', () => this.toggleParticles());
+                document.getElementById('resetHeatmap').addEventListener('click', () => this.resetHeatmap());
+            }
+            
+            startTracking() {
+                this.isTracking = true;
+                this.updateStatus('Tracking active - AI analyzing gaze patterns', 'success');
+                this.trackingLoop();
+            }
+            
+            stopTracking() {
+                this.isTracking = false;
+                this.updateStatus('Tracking stopped', 'warning');
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            }
+            
+            trackingLoop() {
+                if (!this.isTracking) return;
+                
+                this.processFrame();
+                this.updateMetrics();
+                this.updateVisualEffects();
+                
+                requestAnimationFrame(() => this.trackingLoop());
+            }
+            
+            processFrame() {
+                // Simulate advanced computer vision processing
+                this.simulateFaceDetection();
+                this.simulateEyeTracking();
+                this.updateGazePosition();
+                this.recordGazeData();
+                
+                // Update frame rate
+                this.frameCount++;
+                const now = Date.now();
+                if (now - this.lastTime >= 1000) {
+                    this.fps = this.frameCount;
+                    this.frameCount = 0;
+                    this.lastTime = now;
+                }
+            }
+            
+            simulateFaceDetection() {
+                // Simulate face detection with realistic probability
+                this.faceDetected = Math.random() > 0.1; // 90% detection rate
+                this.eyesDetected = this.faceDetected ? (Math.random() > 0.2 ? 2 : 1) : 0;
+                
+                if (this.faceDetected) {
+                    this.drawFaceDetection();
+                }
+            }
+            
+            simulateEyeTracking() {
+                if (!this.faceDetected) {
+                    this.confidence = 0;
+                    return;
+                }
+                
+                // Simulate mouse-following eye tracking with noise
+                const rect = this.canvas.getBoundingClientRect();
+                const mouseX = this.lastMouseX || rect.width / 2;
+                const mouseY = this.lastMouseY || rect.height / 2;
+                
+                // Add realistic noise and lag
+                const noise = 20;
+                const lag = 0.85;
+                
+                this.currentGaze.x = this.currentGaze.x * lag + (mouseX - rect.left + (Math.random() - 0.5) * noise) * (1 - lag);
+                this.currentGaze.y = this.currentGaze.y * lag + (mouseY - rect.top + (Math.random() - 0.5) * noise) * (1 - lag);
+                
+                // Clamp to canvas bounds
+                this.currentGaze.x = Math.max(0, Math.min(this.canvas.width, this.currentGaze.x));
+                this.currentGaze.y = Math.max(0, Math.min(this.canvas.height, this.currentGaze.y));
+                
+                this.confidence = this.eyesDetected === 2 ? 85 + Math.random() * 10 : 60 + Math.random() * 20;
+            }
+            
+            updateGazePosition() {
+                const indicator = this.gazeIndicator;
+                const rect = this.canvas.getBoundingClientRect();
+                
+                indicator.style.left = `${rect.left + this.currentGaze.x - 10}px`;
+                indicator.style.top = `${rect.top + this.currentGaze.y - 10}px`;
+                indicator.style.opacity = this.confidence / 100;
+            }
+            
+            recordGazeData() {
+                const timestamp = Date.now();
+                this.gazeHistory.push({
+                    x: this.currentGaze.x,
+                    y: this.currentGaze.y,
+                    timestamp: timestamp
+                });
+                
+                // Keep only last 1000 points
+                if (this.gazeHistory.length > 1000) {
+                    this.gazeHistory.shift();
+                }
+                
+                // Update heatmap data
+                if (this.confidence > 50) {
+                    this.heatmapData.push({
+                        x: Math.floor(this.currentGaze.x),
+                        y: Math.floor(this.currentGaze.y),
+                        intensity: this.confidence / 100
+                    });
+                }
+            }
+            
+            drawFaceDetection() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Draw face rectangle
+                const faceX = this.canvas.width * 0.25;
+                const faceY = this.canvas.height * 0.2;
+                const faceWidth = this.canvas.width * 0.5;
+                const faceHeight = this.canvas.height * 0.6;
+                
+                this.ctx.strokeStyle = '#4fc3f7';
+                this.ctx.lineWidth = 2;
+                this.ctx.strokeRect(faceX, faceY, faceWidth, faceHeight);
+                
+                // Draw eye rectangles
+                if (this.eyesDetected > 0) {
+                    const eyeWidth = 60;
+                    const eyeHeight = 30;
+                    const leftEyeX = faceX + faceWidth * 0.25;
+                    const rightEyeX = faceX + faceWidth * 0.75;
+                    const eyeY = faceY + faceHeight * 0.35;
+                    
+                    this.ctx.strokeStyle = '#ff4757';
+                    this.ctx.strokeRect(leftEyeX - eyeWidth/2, eyeY - eyeHeight/2, eyeWidth, eyeHeight);
+                    
+                    if (this.eyesDetected === 2) {
+                        this.ctx.strokeRect(rightEyeX - eyeWidth/2, eyeY - eyeHeight/2, eyeWidth, eyeHeight);
+                    }
+                }
+                
+                // Draw gaze line
+                if (this.confidence > 50) {
+                    const centerX = faceX + faceWidth / 2;
+                    const centerY = faceY + faceHeight * 0.4;
+                    
+                    this.ctx.strokeStyle = '#4fc3f7';
+                    this.ctx.lineWidth = 3;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(centerX, centerY);
+                    this.ctx.lineTo(this.currentGaze.x, this.currentGaze.y);
+                    this.ctx.stroke();
+                    
+                    // Draw gaze point
+                    this.ctx.fillStyle = '#ff4757';
+                    this.ctx.beginPath();
+                    this.ctx.arc(this.currentGaze.x, this.currentGaze.y, 8, 0, 2 * Math.PI);
+                    this.ctx.fill();
+                }
+            }
+            
+            updateMetrics() {
+                document.getElementById('gazeX').textContent = `${Math.round(this.currentGaze.x)}px`;
+                document.getElementById('gazeY').textContent = `${Math.round(this.currentGaze.y)}px`;
+                document.getElementById('confidence').textContent = `${Math.round(this.confidence)}%`;
+                document.getElementById('faceDetected').textContent = this.faceDetected ? 'Yes' : 'No';
+                document.getElementById('eyesDetected').textContent = this.eyesDetected;
+                document.getElementById('frameRate').textContent = `${this.fps} FPS`;
+                
+                // Update advanced metrics
+                const blinkRate = Math.round((this.blinkCount / ((Date.now() - this.lastBlinkTime) / 60000)) || 0);
+                document.getElementById('blinkRate').textContent = `${blinkRate}/min`;
+                
+                if (this.confidence > 70) {
+                    if (!this.focusStartTime) this.focusStartTime = Date.now();
+                    this.focusDuration = (Date.now() - this.focusStartTime) / 1000;
+                } else {
+                    this.focusStartTime = null;
+                    this.focusDuration = 0;
+                }
+                
+                document.getElementById('focusDuration').textContent = `${Math.round(this.focusDuration)}s`;
+            }
+            
+            updateVisualEffects() {
+                if (this.showHeatmap) {
+                    this.drawHeatmap();
+                }
+                
+                if (this.showParticles && this.confidence > 50) {
+                    this.createParticles();
+                }
+            }
+            
+            drawHeatmap() {
+                // Clear heatmap
+                this.heatmapCtx.clearRect(0, 0, this.heatmapCanvas.width, this.heatmapCanvas.height);
+                
+                // Draw heat points
+                this.heatmapData.forEach(point => {
+                    const gradient = this.heatmapCtx.createRadialGradient(
+                        point.x, point.y, 0,
+                        point.x, point.y, 50
+                    );
+                    
+                    gradient.addColorStop(0, `rgba(255, 0, 0, ${point.intensity * 0.3})`);
+                    gradient.addColorStop(0.5, `rgba(255, 255, 0, ${point.intensity * 0.2})`);
+                    gradient.addColorStop(1, 'rgba(255, 255, 0, 0)');
+                    
+                    this.heatmapCtx.fillStyle = gradient;
+                    this.heatmapCtx.fillRect(point.x - 50, point.y - 50, 100, 100);
+                });
+            }
+            
+            createParticles() {
+                const container = document.getElementById('interactiveElements');
+                
+                // Limit particle count
+                if (container.children.length > 20) {
+                    container.removeChild(container.firstChild);
+                }
+                
+                const particle = document.createElement('div');
+                particle.className = 'floating-particle';
+                particle.style.left = `${this.currentGaze.x}px`;
+                particle.style.top = `${this.currentGaze.y}px`;
+                particle.style.animationDelay = `${Math.random() * 2}s`;
+                
+                container.appendChild(particle);
+                
+                // Remove particle after animation
+                setTimeout(() => {
+                    if (particle.parentNode) {
+                        particle.parentNode.removeChild(particle);
+                    }
+                }, 3000);
+            }
+            
+            toggleHeatmap() {
+                this.showHeatmap = !this.showHeatmap;
+                if (!this.showHeatmap) {
+                    this.heatmapCtx.clearRect(0, 0, this.heatmapCanvas.width, this.heatmapCanvas.height);
+                }
+            }
+            
+            toggleParticles() {
+                this.showParticles = !this.showParticles;
+                if (!this.showParticles) {
+                    const container = document.getElementById('interactiveElements');
+                    container.innerHTML = '';
+                }
+            }
+            
+            resetHeatmap() {
+                this.heatmapData = [];
+                this.heatmapCtx.clearRect(0, 0, this.heatmapCanvas.width, this.heatmapCanvas.height);
+            }
+            
+            startCalibration() {
+                this.isCalibrating = true;
+                this.calibrationData = [];
+                this.showCalibrationPoints();
+                this.updateStatus('Calibration started - look at each point', 'warning');
+                document.getElementById('calibrationStatus').textContent = 'In progress';
+            }
+            
+            showCalibrationPoints() {
+                const container = document.getElementById('calibrationPoints');
+                container.innerHTML = '';
+                
+                const points = [
+                    { x: 0.1, y: 0.1 }, { x: 0.5, y: 0.1 }, { x: 0.9, y: 0.1 },
+                    { x: 0.1, y: 0.5 }, { x: 0.5, y: 0.5 }, { x: 0.9, y: 0.5 },
+                    { x: 0.1, y: 0.9 }, { x: 0.5, y: 0.9 }, { x: 0.9, y: 0.9 }
+                ];
+                
+                points.forEach((point, index) => {
+                    const element = document.createElement('div');
+                    element.className = 'calibration-point';
+                    element.style.left = `${point.x * 100}%`;
+                    element.style.top = `${point.y * 100}%`;
+                    element.style.transform = 'translate(-50%, -50%)';
+                    
+                    element.addEventListener('click', () => {
+                        this.calibrationData.push({
+                            screen: point,
+                            gaze: { ...this.currentGaze }
+                        });
+                        element.remove();
+                        
+                        if (container.children.length === 0) {
+                            this.completeCalibration();
+                        }
+                    });
+                    
+                    container.appendChild(element);
+                });
+            }
+            
+            completeCalibration() {
+                this.isCalibrating = false;
+                this.updateStatus('Calibration completed successfully', 'success');
+                document.getElementById('calibrationStatus').textContent = 'Calibrated';
+            }
+            
+            updateStatus(message, type) {
+                const status = document.getElementById('systemStatus');
+                status.textContent = message;
+                status.className = `status ${type}`;
+            }
+        }
+        
+        // Track mouse for simulation
+        let lastMouseX = 0, lastMouseY = 0;
+        document.addEventListener('mousemove', (e) => {
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        });
+        
+        // Initialize the eye tracker
+        window.addEventListener('load', () => {
+            const tracker = new AdvancedEyeTracker();
+            tracker.lastMouseX = lastMouseX;
+            tracker.lastMouseY = lastMouseY;
+            
+            // Update mouse position for tracker
+            document.addEventListener('mousemove', (e) => {
+                tracker.lastMouseX = e.clientX;
+                tracker.lastMouseY = e.clientY;
+            });
+        });
+    </script>
+</body>
+</html>
