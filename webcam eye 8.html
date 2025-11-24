@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Eye Tracker - Interactive Visual Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            overflow: hidden;
+            color: white;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(120, 119, 198, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(255, 107, 107, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 60%, rgba(0, 255, 136, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .main-interface {
+            position: relative;
+            width: 90%;
+            height: 90%;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(25px);
+            border-radius: 28px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 
+                0 25px 50px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            padding: 24px;
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .main-interface:hover {
+            border-color: rgba(0, 255, 136, 0.3);
+            box-shadow: 
+                0 30px 60px rgba(0, 0, 0, 0.4),
+                0 0 50px rgba(0, 255, 136, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        }
+
+        .canvas-area {
+            position: relative;
+            background: linear-gradient(145deg, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.2));
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 
+                inset 0 2px 10px rgba(0, 0, 0, 0.3),
+                0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .canvas-area::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 136, 0.5), transparent);
+            z-index: 1;
+        }
+
+        #interactiveCanvas {
+            width: 100%;
+            height: 100%;
+            cursor: none;
+        }
+
+        .control-panel {
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .video-preview {
+            width: 100%;
+            height: 200px;
+            background: #000;
+            border-radius: 16px;
+            overflow: hidden;
+            position: relative;
+            border: 2px solid rgba(0, 255, 136, 0.2);
+            box-shadow: 
+                0 8px 25px rgba(0, 0, 0, 0.3),
+                inset 0 0 20px rgba(0, 255, 136, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .video-preview:hover {
+            border-color: rgba(0, 255, 136, 0.4);
+            transform: scale(1.02);
+            box-shadow: 
+                0 12px 35px rgba(0, 0, 0, 0.4),
+                inset 0 0 30px rgba(0, 255, 136, 0.1);
+        }
+
+        #webcamVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .eye-indicator {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: radial-gradient(circle, #00ff88 0%, #00d4aa 100%);
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 
+                0 0 20px #00ff88,
+                0 0 40px rgba(0, 255, 136, 0.5),
+                inset 0 0 10px rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { 
+                box-shadow: 
+                    0 0 20px #00ff88,
+                    0 0 40px rgba(0, 255, 136, 0.5),
+                    inset 0 0 10px rgba(255, 255, 255, 0.3);
+            }
+            50% { 
+                box-shadow: 
+                    0 0 30px #00ff88,
+                    0 0 60px rgba(0, 255, 136, 0.8),
+                    inset 0 0 15px rgba(255, 255, 255, 0.5);
+            }
+        }
+
+        .stats-panel {
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            backdrop-filter: blur(15px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            box-shadow: 
+                0 8px 25px rgba(0, 0, 0, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 14px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.2s ease;
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .stat-item:hover {
+            background: rgba(0, 255, 136, 0.05);
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin: 4px -12px 8px -12px;
+        }
+
+        .stat-value {
+            color: #00ff88;
+            font-weight: 700;
+            font-size: 15px;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+            font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #00ff88 0%, #00d4aa 50%, #0bc5ea 100%);
+            border: none;
+            padding: 14px 24px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 
+                0 4px 15px rgba(0, 255, 136, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        button:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 
+                0 12px 35px rgba(0, 255, 136, 0.4),
+                0 0 30px rgba(0, 255, 136, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+
+        button:hover::before {
+            left: 100%;
+        }
+
+        button:active {
+            transform: translateY(-1px) scale(1.01);
+            transition: all 0.1s ease;
+        }
+
+        button:disabled {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+            opacity: 0.5;
+        }
+
+        button:disabled::before {
+            display: none;
+        }
+
+        .mode-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .mode-btn {
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 12px 16px;
+            font-size: 13px;
+            text-transform: none;
+            letter-spacing: 0;
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+            font-weight: 500;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .mode-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 136, 0.1), transparent);
+            transition: left 0.4s ease;
+        }
+
+        .mode-btn:hover {
+            border-color: rgba(0, 255, 136, 0.3);
+            background: linear-gradient(145deg, rgba(0, 255, 136, 0.1), rgba(0, 255, 136, 0.05));
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 255, 136, 0.15);
+        }
+
+        .mode-btn:hover::before {
+            left: 100%;
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: #667eea;
+            color: white;
+            box-shadow: 
+                0 8px 25px rgba(102, 126, 234, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .mode-btn.active::before {
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        }
+
+        .calibration-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            z-index: 1000;
+        }
+
+        .calibration-point {
+            width: 20px;
+            height: 20px;
+            background: #00ff88;
+            border-radius: 50%;
+            position: absolute;
+            animation: pulse 1s infinite;
+            box-shadow: 0 0 30px #00ff88;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 0.7; }
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #00ff88;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .gaze-trail {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: rgba(0, 255, 136, 0.6);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: fadeOut 2s ease-out forwards;
+        }
+
+        @keyframes fadeOut {
+            0% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0); }
+        }
+
+        .startup-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at center, rgba(0, 255, 136, 0.1) 0%, transparent 70%),
+                linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(26, 26, 46, 0.95) 100%);
+            backdrop-filter: blur(20px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            z-index: 2000;
+            text-align: center;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .logo {
+            font-size: 56px;
+            font-weight: 800;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #00ff88 0%, #00d4aa 50%, #0bc5ea 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 50px rgba(0, 255, 136, 0.3);
+            animation: logoGlow 3s ease-in-out infinite;
+            letter-spacing: -2px;
+        }
+
+        @keyframes logoGlow {
+            0%, 100% { 
+                filter: brightness(1);
+                transform: scale(1);
+            }
+            50% { 
+                filter: brightness(1.2);
+                transform: scale(1.05);
+            }
+        }
+
+        .subtitle {
+            font-size: 20px;
+            margin-bottom: 48px;
+            opacity: 0.8;
+            font-weight: 300;
+            letter-spacing: 1px;
+            max-width: 500px;
+            line-height: 1.5;
+        }
+
+        .permission-status {
+            margin-top: 24px;
+            padding: 16px 32px;
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            backdrop-filter: blur(15px);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="startup-screen" id="startupScreen">
+            <div class="logo">👁️ EyeTrack Pro</div>
+            <div class="subtitle">Advanced Webcam Eye Tracking Technology</div>
+            <button onclick="initializeApp()">Enable Camera & Start Tracking</button>
+            <div class="permission-status" id="permissionStatus">Camera access required for eye tracking</div>
+        </div>
+
+        <div class="main-interface" id="mainInterface" style="display: none;">
+            <div class="canvas-area">
+                <canvas id="interactiveCanvas"></canvas>
+                <div class="calibration-overlay" id="calibrationOverlay">
+                    <h2>Calibration in Progress</h2>
+                    <p>Look at the green dots as they appear</p>
+                    <div class="calibration-point" id="calibrationPoint"></div>
+                </div>
+            </div>
+
+            <div class="control-panel">
+                <div class="video-preview">
+                    <video id="webcamVideo" autoplay muted></video>
+                    <div class="eye-indicator" id="leftEye"></div>
+                    <div class="eye-indicator" id="rightEye"></div>
+                </div>
+
+                <div class="stats-panel">
+                    <div class="stat-item">
+                        <span>Gaze X:</span>
+                        <span class="stat-value" id="gazeX">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>Gaze Y:</span>
+                        <span class="stat-value" id="gazeY">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>Blink Rate:</span>
+                        <span class="stat-value" id="blinkRate">0/min</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>Tracking:</span>
+                        <span class="stat-value" id="trackingStatus">Initializing</span>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <button onclick="startCalibration()">Calibrate Eye Tracking</button>
+                    <button onclick="toggleTracking()" id="trackingBtn">Start Tracking</button>
+                    <button onclick="resetTracking()">Reset</button>
+                </div>
+
+                <div class="mode-selector">
+                    <button class="mode-btn active" onclick="setMode('particles')" data-mode="particles">Particle Effects</button>
+                    <button class="mode-btn" onclick="setMode('ripples')" data-mode="ripples">Ripple Effects</button>
+                    <button class="mode-btn" onclick="setMode('laser')" data-mode="laser">Laser Pointer</button>
+                    <button class="mode-btn" onclick="setMode('heatmap')" data-mode="heatmap">Gaze Heatmap</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class EyeTracker {
+            constructor() {
+                this.canvas = document.getElementById('interactiveCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.video = document.getElementById('webcamVideo');
+                this.isTracking = false;
+                this.isCalibrated = false;
+                this.currentMode = 'particles';
+                
+                // Eye tracking variables
+                this.gazeX = 0;
+                this.gazeY = 0;
+                this.prevGazeX = 0;
+                this.prevGazeY = 0;
+                this.gazeHistory = [];
+                this.blinkCount = 0;
+                this.lastBlinkTime = 0;
+                
+                // Visual effects
+                this.particles = [];
+                this.ripples = [];
+                this.gazeTrail = [];
+                this.heatmapData = [];
+                
+                // Calibration
+                this.calibrationPoints = [];
+                this.calibrationData = [];
+                this.currentCalibrationPoint = 0;
+                
+                this.initCanvas();
+                this.animate();
+            }
+
+            initCanvas() {
+                const resizeCanvas = () => {
+                    const rect = this.canvas.parentElement.getBoundingClientRect();
+                    this.canvas.width = rect.width;
+                    this.canvas.height = rect.height;
+                };
+                
+                resizeCanvas();
+                window.addEventListener('resize', resizeCanvas);
+            }
+
+            async initCamera() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: { 
+                            width: { ideal: 640 }, 
+                            height: { ideal: 480 },
+                            frameRate: { ideal: 30 }
+                        }
+                    });
+                    
+                    this.video.srcObject = stream;
+                    this.video.onloadedmetadata = () => {
+                        this.video.play();
+                        this.setupEyeTracking();
+                    };
+                    
+                    return true;
+                } catch (error) {
+                    console.error('Camera access denied:', error);
+                    document.getElementById('permissionStatus').textContent = 'Camera access denied. Please allow camera access and refresh.';
+                    return false;
+                }
+            }
+
+            setupEyeTracking() {
+                // Simulate eye tracking initialization
+                setTimeout(() => {
+                    this.updateTrackingStatus('Ready for Calibration');
+                }, 1000);
+            }
+
+            startCalibration() {
+                this.calibrationPoints = [
+                    { x: 0.1, y: 0.1 }, { x: 0.5, y: 0.1 }, { x: 0.9, y: 0.1 },
+                    { x: 0.1, y: 0.5 }, { x: 0.5, y: 0.5 }, { x: 0.9, y: 0.5 },
+                    { x: 0.1, y: 0.9 }, { x: 0.5, y: 0.9 }, { x: 0.9, y: 0.9 }
+                ];
+                
+                this.currentCalibrationPoint = 0;
+                this.calibrationData = [];
+                
+                const overlay = document.getElementById('calibrationOverlay');
+                const point = document.getElementById('calibrationPoint');
+                
+                overlay.style.display = 'flex';
+                this.showNextCalibrationPoint();
+            }
+
+            showNextCalibrationPoint() {
+                if (this.currentCalibrationPoint >= this.calibrationPoints.length) {
+                    this.finishCalibration();
+                    return;
+                }
+
+                const point = document.getElementById('calibrationPoint');
+                const currentPoint = this.calibrationPoints[this.currentCalibrationPoint];
+                
+                point.style.left = (currentPoint.x * this.canvas.width) + 'px';
+                point.style.top = (currentPoint.y * this.canvas.height) + 'px';
+                
+                // Simulate data collection
+                setTimeout(() => {
+                    this.calibrationData.push({
+                        target: currentPoint,
+                        measured: { 
+                            x: currentPoint.x + (Math.random() - 0.5) * 0.1,
+                            y: currentPoint.y + (Math.random() - 0.5) * 0.1
+                        }
+                    });
+                    
+                    this.currentCalibrationPoint++;
+                    this.showNextCalibrationPoint();
+                }, 1500);
+            }
+
+            finishCalibration() {
+                document.getElementById('calibrationOverlay').style.display = 'none';
+                this.isCalibrated = true;
+                this.updateTrackingStatus('Calibrated - Ready to Track');
+            }
+
+            startTracking() {
+                if (!this.isCalibrated) {
+                    alert('Please calibrate the eye tracker first!');
+                    return;
+                }
+                
+                this.isTracking = true;
+                this.updateTrackingStatus('Tracking Active');
+                document.getElementById('trackingBtn').textContent = 'Stop Tracking';
+                
+                // Start simulated eye tracking
+                this.trackingInterval = setInterval(() => {
+                    this.simulateEyeTracking();
+                }, 16); // ~60 FPS
+            }
+
+            stopTracking() {
+                this.isTracking = false;
+                this.updateTrackingStatus('Tracking Stopped');
+                document.getElementById('trackingBtn').textContent = 'Start Tracking';
+                
+                if (this.trackingInterval) {
+                    clearInterval(this.trackingInterval);
+                }
+            }
+
+            simulateEyeTracking() {
+                // Simulate smooth eye movement with some noise
+                const mouseX = this.mouseX || this.canvas.width / 2;
+                const mouseY = this.mouseY || this.canvas.height / 2;
+                
+                // Add some lag and smoothing to simulate real eye tracking
+                this.gazeX += (mouseX - this.gazeX) * 0.1 + (Math.random() - 0.5) * 10;
+                this.gazeY += (mouseY - this.gazeY) * 0.1 + (Math.random() - 0.5) * 10;
+                
+                // Keep within bounds
+                this.gazeX = Math.max(0, Math.min(this.canvas.width, this.gazeX));
+                this.gazeY = Math.max(0, Math.min(this.canvas.height, this.gazeY));
+                
+                // Update gaze history
+                this.gazeHistory.push({ x: this.gazeX, y: this.gazeY, time: Date.now() });
+                if (this.gazeHistory.length > 60) {
+                    this.gazeHistory.shift();
+                }
+                
+                // Simulate random blinks
+                if (Math.random() < 0.001) {
+                    this.simulateBlink();
+                }
+                
+                this.updateStats();
+                this.createVisualEffects();
+            }
+
+            simulateBlink() {
+                this.blinkCount++;
+                this.lastBlinkTime = Date.now();
+                
+                // Visual blink effect
+                const leftEye = document.getElementById('leftEye');
+                const rightEye = document.getElementById('rightEye');
+                
+                leftEye.style.opacity = '0';
+                rightEye.style.opacity = '0';
+                
+                setTimeout(() => {
+                    leftEye.style.opacity = '1';
+                    rightEye.style.opacity = '1';
+                }, 150);
+            }
+
+            createVisualEffects() {
+                switch (this.currentMode) {
+                    case 'particles':
+                        this.createParticles();
+                        break;
+                    case 'ripples':
+                        this.createRipples();
+                        break;
+                    case 'laser':
+                        this.createLaserEffect();
+                        break;
+                    case 'heatmap':
+                        this.updateHeatmap();
+                        break;
+                }
+            }
+
+            createParticles() {
+                if (Math.random() < 0.3) {
+                    this.particles.push({
+                        x: this.gazeX,
+                        y: this.gazeY,
+                        vx: (Math.random() - 0.5) * 4,
+                        vy: (Math.random() - 0.5) * 4,
+                        life: 1.0,
+                        size: Math.random() * 8 + 2,
+                        color: this.getRandomColor()
+                    });
+                }
+            }
+
+            createRipples() {
+                const distance = Math.sqrt(
+                    Math.pow(this.gazeX - this.prevGazeX, 2) + 
+                    Math.pow(this.gazeY - this.prevGazeY, 2)
+                );
+                
+                if (distance > 5) {
+                    this.ripples.push({
+                        x: this.gazeX,
+                        y: this.gazeY,
+                        radius: 0,
+                        maxRadius: 100,
+                        opacity: 1
+                    });
+                }
+                
+                this.prevGazeX = this.gazeX;
+                this.prevGazeY = this.gazeY;
+            }
+
+            createLaserEffect() {
+                // Create a trail effect for laser mode
+                this.gazeTrail.push({
+                    x: this.gazeX,
+                    y: this.gazeY,
+                    time: Date.now()
+                });
+                
+                // Keep trail limited
+                if (this.gazeTrail.length > 20) {
+                    this.gazeTrail.shift();
+                }
+            }
+
+            updateHeatmap() {
+                this.heatmapData.push({
+                    x: Math.floor(this.gazeX / 20),
+                    y: Math.floor(this.gazeY / 20),
+                    time: Date.now()
+                });
+                
+                // Limit heatmap data
+                if (this.heatmapData.length > 500) {
+                    this.heatmapData.shift();
+                }
+            }
+
+            getRandomColor() {
+                const colors = ['#00ff88', '#667eea', '#764ba2', '#ff6b6b', '#4ecdc4', '#45b7d1'];
+                return colors[Math.floor(Math.random() * colors.length)];
+            }
+
+            animate() {
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                if (this.isTracking) {
+                    this.renderEffects();
+                    this.renderGazeCursor();
+                }
+                
+                requestAnimationFrame(() => this.animate());
+            }
+
+            renderEffects() {
+                switch (this.currentMode) {
+                    case 'particles':
+                        this.renderParticles();
+                        break;
+                    case 'ripples':
+                        this.renderRipples();
+                        break;
+                    case 'laser':
+                        this.renderLaser();
+                        break;
+                    case 'heatmap':
+                        this.renderHeatmap();
+                        break;
+                }
+            }
+
+            renderParticles() {
+                this.particles = this.particles.filter(particle => {
+                    particle.x += particle.vx;
+                    particle.y += particle.vy;
+                    particle.life -= 0.02;
+                    particle.size *= 0.98;
+                    
+                    if (particle.life > 0) {
+                        this.ctx.save();
+                        this.ctx.globalAlpha = particle.life;
+                        this.ctx.fillStyle = particle.color;
+                        this.ctx.beginPath();
+                        this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+                        this.ctx.fill();
+                        this.ctx.restore();
+                        return true;
+                    }
+                    return false;
+                });
+            }
+
+            renderRipples() {
+                this.ripples = this.ripples.filter(ripple => {
+                    ripple.radius += 3;
+                    ripple.opacity -= 0.02;
+                    
+                    if (ripple.opacity > 0) {
+                        this.ctx.save();
+                        this.ctx.globalAlpha = ripple.opacity;
+                        this.ctx.strokeStyle = '#00ff88';
+                        this.ctx.lineWidth = 2;
+                        this.ctx.beginPath();
+                        this.ctx.arc(ripple.x, ripple.y, ripple.radius, 0, Math.PI * 2);
+                        this.ctx.stroke();
+                        this.ctx.restore();
+                        return true;
+                    }
+                    return false;
+                });
+            }
+
+            renderLaser() {
+                if (this.gazeTrail.length > 1) {
+                    this.ctx.save();
+                    this.ctx.strokeStyle = '#ff0066';
+                    this.ctx.lineWidth = 3;
+                    this.ctx.shadowBlur = 20;
+                    this.ctx.shadowColor = '#ff0066';
+                    
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(this.gazeTrail[0].x, this.gazeTrail[0].y);
+                    
+                    for (let i = 1; i < this.gazeTrail.length; i++) {
+                        this.ctx.lineTo(this.gazeTrail[i].x, this.gazeTrail[i].y);
+                    }
+                    
+                    this.ctx.stroke();
+                    this.ctx.restore();
+                }
+            }
+
+            renderHeatmap() {
+                const heatmapGrid = {};
+                
+                this.heatmapData.forEach(point => {
+                    const key = `${point.x},${point.y}`;
+                    heatmapGrid[key] = (heatmapGrid[key] || 0) + 1;
+                });
+                
+                Object.entries(heatmapGrid).forEach(([key, intensity]) => {
+                    const [x, y] = key.split(',').map(Number);
+                    const alpha = Math.min(intensity / 10, 1);
+                    
+                    this.ctx.save();
+                    this.ctx.globalAlpha = alpha;
+                    this.ctx.fillStyle = `hsl(${240 - intensity * 20}, 100%, 50%)`;
+                    this.ctx.fillRect(x * 20, y * 20, 20, 20);
+                    this.ctx.restore();
+                });
+            }
+
+            renderGazeCursor() {
+                this.ctx.save();
+                this.ctx.fillStyle = '#00ff88';
+                this.ctx.shadowBlur = 20;
+                this.ctx.shadowColor = '#00ff88';
+                this.ctx.beginPath();
+                this.ctx.arc(this.gazeX, this.gazeY, 8, 0, Math.PI * 2);
+                this.ctx.fill();
+                this.ctx.restore();
+            }
+
+            updateStats() {
+                document.getElementById('gazeX').textContent = Math.round(this.gazeX);
+                document.getElementById('gazeY').textContent = Math.round(this.gazeY);
+                
+                const blinkRate = this.blinkCount * (60000 / Math.max(Date.now() - (this.startTime || Date.now()), 1000));
+                document.getElementById('blinkRate').textContent = Math.round(blinkRate);
+            }
+
+            updateTrackingStatus(status) {
+                document.getElementById('trackingStatus').textContent = status;
+            }
+
+            setMode(mode) {
+                this.currentMode = mode;
+                
+                // Clear effects when switching modes
+                this.particles = [];
+                this.ripples = [];
+                this.gazeTrail = [];
+                this.heatmapData = [];
+                
+                // Update active button
+                document.querySelectorAll('.mode-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                    if (btn.dataset.mode === mode) {
+                        btn.classList.add('active');
+                    }
+                });
+            }
+
+            reset() {
+                this.stopTracking();
+                this.isCalibrated = false;
+                this.particles = [];
+                this.ripples = [];
+                this.gazeTrail = [];
+                this.heatmapData = [];
+                this.blinkCount = 0;
+                this.updateTrackingStatus('Reset - Ready for Calibration');
+            }
+        }
+
+        let eyeTracker;
+
+        async function initializeApp() {
+            const startupScreen = document.getElementById('startupScreen');
+            const mainInterface = document.getElementById('mainInterface');
+            
+            eyeTracker = new EyeTracker();
+            
+            const cameraSuccess = await eyeTracker.initCamera();
+            
+            if (cameraSuccess) {
+                startupScreen.style.display = 'none';
+                mainInterface.style.display = 'grid';
+                eyeTracker.startTime = Date.now();
+            }
+        }
+
+        function startCalibration() {
+            eyeTracker.startCalibration();
+        }
+
+        function toggleTracking() {
+            if (eyeTracker.isTracking) {
+                eyeTracker.stopTracking();
+            } else {
+                eyeTracker.startTracking();
+            }
+        }
+
+        function resetTracking() {
+            eyeTracker.reset();
+        }
+
+        function setMode(mode) {
+            eyeTracker.setMode(mode);
+        }
+
+        // Mouse tracking for demo purposes
+        document.addEventListener('mousemove', (e) => {
+            if (eyeTracker && eyeTracker.canvas) {
+                const rect = eyeTracker.canvas.getBoundingClientRect();
+                eyeTracker.mouseX = e.clientX - rect.left;
+                eyeTracker.mouseY = e.clientY - rect.top;
+            }
+        });
+    </script>
+</body>
+</html>
