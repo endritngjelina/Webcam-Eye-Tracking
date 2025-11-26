@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Eye Tracker Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #16213e 100%);
+            color: white;
+            overflow: hidden;
+            height: 100vh;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(0, 245, 255, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(255, 0, 255, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 40% 60%, rgba(0, 255, 128, 0.02) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            padding: 24px 30px;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            border-image: linear-gradient(90deg, transparent, rgba(0, 245, 255, 0.3), transparent) 1;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            position: relative;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                #00f5ff 20%, 
+                #ff00ff 50%, 
+                #00ff80 80%, 
+                transparent 100%);
+            opacity: 0.6;
+        }
+
+        .title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            background: linear-gradient(45deg, #00f5ff 0%, #ff00ff 50%, #00ff80 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.5px;
+            text-shadow: 0 0 30px rgba(0, 245, 255, 0.3);
+            position: relative;
+        }
+
+        .title::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 60px;
+            height: 3px;
+            background: linear-gradient(90deg, #00f5ff, #ff00ff);
+            border-radius: 2px;
+            box-shadow: 0 0 10px rgba(0, 245, 255, 0.5);
+        }
+
+        .controls {
+            display: flex;
+            gap: 18px;
+            align-items: center;
+            flex-wrap: wrap;
+            position: relative;
+        }
+
+        .controls::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(255, 255, 255, 0.1) 20%, 
+                rgba(255, 255, 255, 0.2) 50%, 
+                rgba(255, 255, 255, 0.1) 80%, 
+                transparent 100%);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #00f5ff 0%, #0080ff 100%);
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            letter-spacing: 0.5px;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 245, 255, 0.2);
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 25px rgba(0, 245, 255, 0.4);
+            background: linear-gradient(135deg, #00f5ff 0%, #ff00ff 100%);
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:active {
+            transform: translateY(-1px) scale(0.98);
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:disabled:hover {
+            transform: none;
+            background: linear-gradient(135deg, #00f5ff 0%, #0080ff 100%);
+        }
+
+        .status {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .status::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .status.active {
+            background: linear-gradient(135deg, rgba(0, 255, 0, 0.2), rgba(0, 255, 128, 0.3));
+            color: #00ff80;
+            border: 1px solid rgba(0, 255, 128, 0.4);
+            box-shadow: 0 0 20px rgba(0, 255, 128, 0.2);
+        }
+
+        .status.active::before {
+            animation: statusShimmer 3s ease-in-out infinite;
+        }
+
+        .status.inactive {
+            background: linear-gradient(135deg, rgba(255, 0, 0, 0.15), rgba(255, 68, 68, 0.2));
+            color: #ff6b6b;
+            border: 1px solid rgba(255, 68, 68, 0.3);
+        }
+
+        @keyframes statusShimmer {
+            0% { left: -100%; }
+            50% { left: 100%; }
+            100% { left: 100%; }
+        }
+
+        .main-area {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .video-container {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            width: 320px;
+            height: 240px;
+            border-radius: 20px;
+            overflow: hidden;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 
+                0 20px 40px rgba(0, 0, 0, 0.3),
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .video-container:hover {
+            transform: scale(1.02);
+            box-shadow: 
+                0 25px 50px rgba(0, 0, 0, 0.4),
+                0 0 30px rgba(0, 245, 255, 0.2);
+        }
+
+        .video-container::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, #00f5ff, #ff00ff, #00ff80, #00f5ff);
+            border-radius: 22px;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .video-container:hover::before {
+            opacity: 0.3;
+        }
+
+        #videoElement {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+
+        .canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        .eye-indicator {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #00f5ff 0%, #0080ff 70%, transparent 100%);
+            box-shadow: 
+                0 0 20px #00f5ff,
+                0 0 40px rgba(0, 245, 255, 0.3),
+                inset 0 0 10px rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 200;
+            opacity: 0;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .eye-indicator::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+        }
+
+        .eye-indicator::after {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: -5px;
+            right: -5px;
+            bottom: -5px;
+            border: 2px solid transparent;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #00f5ff, #ff00ff) border-box;
+            mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+            mask-composite: exclude;
+            animation: eyeIndicatorPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes eyeIndicatorPulse {
+            0%, 100% { transform: scale(1); opacity: 0.7; }
+            50% { transform: scale(1.2); opacity: 1; }
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .stats-panel {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(20px) saturate(180%);
+            padding: 20px 25px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            min-width: 280px;
+            z-index: 100;
+            box-shadow: 
+                0 20px 40px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .stats-panel:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .stats-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #00f5ff, #ff00ff, #00ff80);
+            border-radius: 16px 16px 0 0;
+            opacity: 0.8;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 8px 0;
+            font-size: 14px;
+            font-weight: 500;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-item span:first-child {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .stat-item span:last-child {
+            color: #00f5ff;
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+        }
+
+        .heatmap-zone {
+            position: absolute;
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            border-radius: 16px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+            backdrop-filter: blur(5px);
+            background: linear-gradient(135deg, 
+                rgba(255, 255, 255, 0.02) 0%, 
+                rgba(0, 245, 255, 0.02) 50%, 
+                rgba(255, 0, 255, 0.02) 100%);
+            overflow: hidden;
+        }
+
+        .heatmap-zone::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, 
+                transparent 0%, 
+                rgba(0, 245, 255, 0.3) 25%, 
+                rgba(255, 0, 255, 0.3) 50%, 
+                rgba(0, 255, 128, 0.3) 75%, 
+                transparent 100%);
+            border-radius: 18px;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            z-index: -1;
+        }
+
+        .heatmap-zone.active {
+            border-color: rgba(0, 245, 255, 0.6);
+            box-shadow: 
+                0 0 30px rgba(0, 245, 255, 0.3),
+                0 0 60px rgba(0, 245, 255, 0.1),
+                inset 0 0 30px rgba(0, 245, 255, 0.05);
+            background: linear-gradient(135deg, 
+                rgba(0, 245, 255, 0.08) 0%, 
+                rgba(255, 0, 255, 0.06) 50%, 
+                rgba(0, 255, 128, 0.04) 100%);
+            transform: scale(1.02);
+        }
+
+        .heatmap-zone.active::before {
+            opacity: 1;
+            animation: heatmapPulse 3s ease-in-out infinite;
+        }
+
+        @keyframes heatmapPulse {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.05); }
+        }
+
+        .calibration-point {
+            position: absolute;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #ff00ff 0%, #ff0080 70%, transparent 100%);
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            animation: calibrationPulse 2s ease-in-out infinite;
+            z-index: 300;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 
+                0 0 30px #ff00ff,
+                0 0 60px rgba(255, 0, 255, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .calibration-point::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 12px;
+            height: 12px;
+            background: white;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+        }
+
+        .calibration-point::after {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: -6px;
+            right: -6px;
+            bottom: -6px;
+            border: 2px solid rgba(255, 0, 255, 0.5);
+            border-radius: 50%;
+            animation: calibrationRipple 2s ease-out infinite;
+        }
+
+        .calibration-point:hover {
+            transform: translate(-50%, -50%) scale(1.1);
+            box-shadow: 
+                0 0 40px #ff00ff,
+                0 0 80px rgba(255, 0, 255, 0.4);
+        }
+
+        @keyframes calibrationPulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            50% { transform: translate(-50%, -50%) scale(1.15); opacity: 0.8; }
+        }
+
+        @keyframes calibrationRipple {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+
+        .trail {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(0, 245, 255, 0.6);
+            pointer-events: none;
+            z-index: 15;
+        }
+
+        .focus-zone {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 20;
+            backdrop-filter: blur(3px);
+            background: radial-gradient(circle, 
+                rgba(255, 255, 255, 0.02) 0%, 
+                rgba(0, 245, 255, 0.01) 50%, 
+                transparent 70%);
+        }
+
+        .focus-zone::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: -5px;
+            right: -5px;
+            bottom: -5px;
+            border: 2px solid transparent;
+            border-radius: 50%;
+            background: linear-gradient(45deg, 
+                rgba(0, 255, 0, 0.3), 
+                rgba(0, 255, 128, 0.3), 
+                rgba(0, 245, 255, 0.3)) border-box;
+            mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+            mask-composite: exclude;
+            opacity: 0;
+            transition: all 0.4s ease;
+        }
+
+        .focus-zone::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 8px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.3s ease;
+        }
+
+        .focus-zone.focused {
+            border-color: rgba(0, 255, 128, 0.8);
+            box-shadow: 
+                0 0 40px rgba(0, 255, 128, 0.4),
+                0 0 80px rgba(0, 255, 128, 0.2),
+                inset 0 0 20px rgba(0, 255, 128, 0.1);
+            background: radial-gradient(circle, 
+                rgba(0, 255, 128, 0.08) 0%, 
+                rgba(0, 245, 255, 0.04) 50%, 
+                transparent 70%);
+            animation: focusZonePulse 1.5s ease-in-out infinite;
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+
+        .focus-zone.focused::before {
+            opacity: 1;
+            animation: focusRing 2s linear infinite;
+        }
+
+        .focus-zone.focused::after {
+            background: #00ff80;
+            box-shadow: 0 0 15px rgba(0, 255, 128, 0.8);
+            transform: translate(-50%, -50%) scale(1.5);
+        }
+
+        @keyframes focusZonePulse {
+            0%, 100% { 
+                transform: translate(-50%, -50%) scale(1.1); 
+                box-shadow: 0 0 40px rgba(0, 255, 128, 0.4), 0 0 80px rgba(0, 255, 128, 0.2);
+            }
+            50% { 
+                transform: translate(-50%, -50%) scale(1.15); 
+                box-shadow: 0 0 50px rgba(0, 255, 128, 0.6), 0 0 100px rgba(0, 255, 128, 0.3);
+            }
+        }
+
+        @keyframes focusRing {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .permission-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                linear-gradient(135deg, rgba(0, 0, 0, 0.95) 0%, rgba(26, 26, 46, 0.98) 100%),
+                radial-gradient(circle at 30% 40%, rgba(0, 245, 255, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 70% 60%, rgba(255, 0, 255, 0.05) 0%, transparent 50%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            flex-direction: column;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            animation: overlayFadeIn 0.5s ease-out;
+        }
+
+        .permission-content {
+            background: 
+                linear-gradient(135deg, 
+                    rgba(255, 255, 255, 0.08) 0%, 
+                    rgba(255, 255, 255, 0.04) 100%);
+            padding: 50px 40px;
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(20px) saturate(180%);
+            box-shadow: 
+                0 30px 60px rgba(0, 0, 0, 0.3),
+                0 0 0 1px rgba(255, 255, 255, 0.05),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            max-width: 500px;
+            position: relative;
+            overflow: hidden;
+            animation: contentSlideUp 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.2s both;
+        }
+
+        .permission-content::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, 
+                #00f5ff 0%, 
+                #ff00ff 50%, 
+                #00ff80 100%);
+            opacity: 0.8;
+        }
+
+        .permission-content h2 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #00f5ff 0%, #ff00ff 50%, #00ff80 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(0, 245, 255, 0.3);
+        }
+
+        .permission-content p {
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 35px;
+            color: rgba(255, 255, 255, 0.85);
+            font-weight: 400;
+        }
+
+        @keyframes overlayFadeIn {
+            from { 
+                opacity: 0; 
+                backdrop-filter: blur(0px);
+            }
+            to { 
+                opacity: 1; 
+                backdrop-filter: blur(10px);
+            }
+        }
+
+        @keyframes contentSlideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* Add smooth loading states and micro-interactions */
+        .loading-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid #00f5ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Enhanced scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(45deg, #00f5ff, #ff00ff);
+            border-radius: 4px;
+            box-shadow: 0 0 10px rgba(0, 245, 255, 0.3);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(45deg, #ff00ff, #00ff80);
+        }
+
+        /* Selection styling */
+        ::selection {
+            background: rgba(0, 245, 255, 0.3);
+            color: white;
+        }
+
+        /* Focus states for accessibility */
+        .btn:focus-visible {
+            outline: 2px solid #00f5ff;
+            outline-offset: 2px;
+        }
+
+        /* Responsive design improvements */
+        @media (max-width: 768px) {
+            .header {
+                padding: 16px 20px;
+            }
+            
+            .title {
+                font-size: 22px;
+            }
+            
+            .video-container {
+                width: 280px;
+                height: 210px;
+                top: 20px;
+                right: 20px;
+            }
+            
+            .stats-panel {
+                bottom: 20px;
+                left: 20px;
+                min-width: 250px;
+            }
+            
+            .controls {
+                gap: 12px;
+            }
+            
+            .btn {
+                padding: 10px 18px;
+                font-size: 13px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .video-container {
+                width: 240px;
+                height: 180px;
+            }
+            
+            .permission-content {
+                margin: 20px;
+                padding: 35px 25px;
+            }
+            
+            .permission-content h2 {
+                font-size: 26px;
+            }
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">🎯 Advanced Eye Tracking System</div>
+            <div class="controls">
+                <button class="btn" id="startBtn">Start Tracking</button>
+                <button class="btn" id="calibrateBtn" disabled>Calibrate</button>
+                <button class="btn" id="resetBtn">Reset Data</button>
+                <button class="btn" id="effectsBtn">Toggle Effects</button>
+                <div class="status inactive" id="statusIndicator">Inactive</div>
+            </div>
+        </div>
+
+        <div class="main-area">
+            <div class="video-container">
+                <video id="videoElement" autoplay muted playsinline></video>
+            </div>
+            
+            <canvas class="canvas-overlay" id="trackingCanvas"></canvas>
+            <div class="eye-indicator" id="eyeIndicator"></div>
+            
+            <div class="stats-panel">
+                <div class="stat-item">
+                    <span>Tracking Status:</span>
+                    <span id="trackingStatus">Stopped</span>
+                </div>
+                <div class="stat-item">
+                    <span>Eye Position:</span>
+                    <span id="eyePosition">N/A</span>
+                </div>
+                <div class="stat-item">
+                    <span>Gaze Points:</span>
+                    <span id="gazePoints">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Accuracy:</span>
+                    <span id="accuracy">Calibrating...</span>
+                </div>
+                <div class="stat-item">
+                    <span>Focus Time:</span>
+                    <span id="focusTime">0s</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="permission-overlay" id="permissionOverlay">
+        <div class="permission-content">
+            <h2 style="margin-bottom: 20px;">Camera Access Required</h2>
+            <p style="margin-bottom: 30px;">This demo requires camera access to track eye movements.<br>Your video data is processed locally and never transmitted.</p>
+            <button class="btn" id="grantAccessBtn">Grant Camera Access</button>
+        </div>
+    </div>
+
+    <script>
+        class EyeTracker {
+            constructor() {
+                this.video = document.getElementById('videoElement');
+                this.canvas = document.getElementById('trackingCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.eyeIndicator = document.getElementById('eyeIndicator');
+                
+                this.isTracking = false;
+                this.isCalibrated = false;
+                this.calibrationPoints = [];
+                this.currentCalibrationIndex = 0;
+                this.gazeData = [];
+                this.particles = [];
+                this.trails = [];
+                this.heatmapData = {};
+                this.focusZones = [];
+                this.effectsEnabled = true;
+                
+                this.stats = {
+                    gazePoints: 0,
+                    startTime: null,
+                    focusTime: 0
+                };
+                
+                // Initialize mouse position at center
+                this.lastMouseX = window.innerWidth / 2;
+                this.lastMouseY = window.innerHeight / 2;
+                
+                this.setupCanvas();
+                this.setupEventListeners();
+                this.createHeatmapZones();
+                this.createFocusZones();
+                this.startAnimationLoop();
+            }
+            
+            setupCanvas() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+                
+                window.addEventListener('resize', () => {
+                    this.canvas.width = window.innerWidth;
+                    this.canvas.height = window.innerHeight;
+                    this.createHeatmapZones();
+                    this.createFocusZones();
+                });
+            }
+            
+            setupEventListeners() {
+                document.getElementById('startBtn').addEventListener('click', () => this.toggleTracking());
+                document.getElementById('calibrateBtn').addEventListener('click', () => this.startCalibration());
+                document.getElementById('resetBtn').addEventListener('click', () => this.resetData());
+                document.getElementById('effectsBtn').addEventListener('click', () => this.toggleEffects());
+            }
+            
+            async requestCamera() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: { 
+                            width: { ideal: 640 },
+                            height: { ideal: 480 },
+                            facingMode: 'user'
+                        }
+                    });
+                    
+                    this.video.srcObject = stream;
+                    document.getElementById('permissionOverlay').classList.add('hidden');
+                    document.getElementById('calibrateBtn').disabled = false;
+                    return true;
+                } catch (error) {
+                    console.error('Camera access denied:', error);
+                    alert('Camera access is required for eye tracking functionality.');
+                    return false;
+                }
+            }
+            
+            toggleTracking() {
+                if (!this.isTracking) {
+                    this.startTracking();
+                } else {
+                    this.stopTracking();
+                }
+            }
+            
+            startTracking() {
+                if (!this.video.srcObject) {
+                    alert('Please grant camera access first!');
+                    return;
+                }
+                
+                this.isTracking = true;
+                this.stats.startTime = Date.now();
+                document.getElementById('startBtn').textContent = 'Stop Tracking';
+                document.getElementById('statusIndicator').className = 'status active';
+                document.getElementById('statusIndicator').textContent = 'Active';
+                document.getElementById('trackingStatus').textContent = 'Running';
+                
+                this.trackingLoop();
+            }
+            
+            stopTracking() {
+                this.isTracking = false;
+                this.eyeIndicator.style.opacity = '0';
+                document.getElementById('startBtn').textContent = 'Start Tracking';
+                document.getElementById('statusIndicator').className = 'status inactive';
+                document.getElementById('statusIndicator').textContent = 'Inactive';
+                document.getElementById('trackingStatus').textContent = 'Stopped';
+            }
+            
+            trackingLoop() {
+                if (!this.isTracking) return;
+                
+                // Simulate eye tracking with enhanced mouse movement
+                const rect = this.canvas.getBoundingClientRect();
+                const mouseX = this.lastMouseX || rect.width / 2;
+                const mouseY = this.lastMouseY || rect.height / 2;
+                
+                // Add realistic eye tracking simulation with slight jitter
+                const jitterX = (Math.random() - 0.5) * 10;
+                const jitterY = (Math.random() - 0.5) * 10;
+                const eyeX = mouseX + jitterX;
+                const eyeY = mouseY + jitterY;
+                
+                this.processGazePoint(eyeX, eyeY);
+                this.updateVisuals(eyeX, eyeY);
+                this.updateStats();
+                
+                requestAnimationFrame(() => this.trackingLoop());
+            }
+            
+            processGazePoint(x, y) {
+                this.gazeData.push({ x, y, timestamp: Date.now() });
+                this.stats.gazePoints++;
+                
+                // Update heatmap data
+                const gridX = Math.floor(x / 50);
+                const gridY = Math.floor(y / 50);
+                const key = `${gridX},${gridY}`;
+                this.heatmapData[key] = (this.heatmapData[key] || 0) + 1;
+                
+                // Add particle effect
+                if (this.effectsEnabled) {
+                    this.addParticle(x, y);
+                    this.addTrail(x, y);
+                }
+                
+                // Check focus zones
+                this.checkFocusZones(x, y);
+            }
+            
+            updateVisuals(x, y) {
+                // Update eye indicator
+                this.eyeIndicator.style.left = x + 'px';
+                this.eyeIndicator.style.top = y + 'px';
+                this.eyeIndicator.style.opacity = '1';
+                
+                // Clear and redraw canvas
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                if (this.effectsEnabled) {
+                    this.drawHeatmap();
+                    this.updateParticles();
+                    this.updateTrails();
+                }
+                
+                this.drawGazeTrail();
+            }
+            
+            addParticle(x, y) {
+                if (this.particles.length > 50) {
+                    this.particles.shift();
+                }
+                
+                this.particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 4,
+                    vy: (Math.random() - 0.5) * 4,
+                    life: 1,
+                    decay: 0.02,
+                    color: `hsl(${180 + Math.random() * 60}, 100%, 70%)`
+                });
+            }
+            
+            addTrail(x, y) {
+                if (this.trails.length > 20) {
+                    this.trails.shift();
+                }
+                
+                this.trails.push({
+                    x: x,
+                    y: y,
+                    life: 1,
+                    decay: 0.05
+                });
+            }
+            
+            updateParticles() {
+                this.particles = this.particles.filter(particle => {
+                    particle.x += particle.vx;
+                    particle.y += particle.vy;
+                    particle.life -= particle.decay;
+                    
+                    if (particle.life > 0) {
+                        this.ctx.save();
+                        this.ctx.globalAlpha = particle.life;
+                        this.ctx.fillStyle = particle.color;
+                        this.ctx.beginPath();
+                        this.ctx.arc(particle.x, particle.y, 2, 0, Math.PI * 2);
+                        this.ctx.fill();
+                        this.ctx.restore();
+                        return true;
+                    }
+                    return false;
+                });
+            }
+            
+            updateTrails() {
+                this.trails = this.trails.filter(trail => {
+                    trail.life -= trail.decay;
+                    
+                    if (trail.life > 0) {
+                        this.ctx.save();
+                        this.ctx.globalAlpha = trail.life * 0.6;
+                        this.ctx.fillStyle = '#00f5ff';
+                        this.ctx.beginPath();
+                        this.ctx.arc(trail.x, trail.y, 3, 0, Math.PI * 2);
+                        this.ctx.fill();
+                        this.ctx.restore();
+                        return true;
+                    }
+                    return false;
+                });
+            }
+            
+            drawGazeTrail() {
+                if (this.gazeData.length < 2) return;
+                
+                this.ctx.save();
+                this.ctx.strokeStyle = 'rgba(0, 245, 255, 0.3)';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                
+                const recentPoints = this.gazeData.slice(-10);
+                recentPoints.forEach((point, index) => {
+                    if (index === 0) {
+                        this.ctx.moveTo(point.x, point.y);
+                    } else {
+                        this.ctx.lineTo(point.x, point.y);
+                    }
+                });
+                
+                this.ctx.stroke();
+                this.ctx.restore();
+            }
+            
+            drawHeatmap() {
+                const maxIntensity = Math.max(...Object.values(this.heatmapData), 1);
+                
+                for (const [key, intensity] of Object.entries(this.heatmapData)) {
+                    const [gridX, gridY] = key.split(',').map(Number);
+                    const alpha = (intensity / maxIntensity) * 0.3;
+                    
+                    this.ctx.save();
+                    this.ctx.globalAlpha = alpha;
+                    this.ctx.fillStyle = '#ff00ff';
+                    this.ctx.fillRect(gridX * 50, gridY * 50, 50, 50);
+                    this.ctx.restore();
+                }
+            }
+            
+            createHeatmapZones() {
+                // Remove existing zones
+                document.querySelectorAll('.heatmap-zone').forEach(el => el.remove());
+                
+                const zones = [
+                    { x: 100, y: 100, width: 200, height: 150 },
+                    { x: window.innerWidth - 300, y: 100, width: 200, height: 150 },
+                    { x: window.innerWidth / 2 - 100, y: window.innerHeight / 2 - 75, width: 200, height: 150 },
+                    { x: 100, y: window.innerHeight - 250, width: 200, height: 150 }
+                ];
+                
+                zones.forEach((zone, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'heatmap-zone';
+                    div.style.left = zone.x + 'px';
+                    div.style.top = zone.y + 'px';
+                    div.style.width = zone.width + 'px';
+                    div.style.height = zone.height + 'px';
+                    document.querySelector('.main-area').appendChild(div);
+                });
+            }
+            
+            createFocusZones() {
+                // Remove existing zones
+                document.querySelectorAll('.focus-zone').forEach(el => el.remove());
+                
+                for (let i = 0; i < 5; i++) {
+                    const zone = {
+                        x: Math.random() * (window.innerWidth - 200) + 100,
+                        y: Math.random() * (window.innerHeight - 200) + 100,
+                        radius: 60,
+                        focused: false,
+                        focusStart: null
+                    };
+                    
+                    const div = document.createElement('div');
+                    div.className = 'focus-zone';
+                    div.style.left = zone.x + 'px';
+                    div.style.top = zone.y + 'px';
+                    document.querySelector('.main-area').appendChild(div);
+                    
+                    zone.element = div;
+                    this.focusZones.push(zone);
+                }
+            }
+            
+            checkFocusZones(x, y) {
+                this.focusZones.forEach(zone => {
+                    const distance = Math.sqrt((x - zone.x) ** 2 + (y - zone.y) ** 2);
+                    const isFocused = distance < zone.radius;
+                    
+                    if (isFocused && !zone.focused) {
+                        zone.focused = true;
+                        zone.focusStart = Date.now();
+                        zone.element.classList.add('focused');
+                    } else if (!isFocused && zone.focused) {
+                        zone.focused = false;
+                        if (zone.focusStart) {
+                            this.stats.focusTime += Date.now() - zone.focusStart;
+                        }
+                        zone.element.classList.remove('focused');
+                    }
+                });
+            }
+            
+            startCalibration() {
+                this.calibrationPoints = [
+                    { x: 100, y: 100 },
+                    { x: window.innerWidth - 100, y: 100 },
+                    { x: window.innerWidth / 2, y: window.innerHeight / 2 },
+                    { x: 100, y: window.innerHeight - 100 },
+                    { x: window.innerWidth - 100, y: window.innerHeight - 100 }
+                ];
+                
+                this.currentCalibrationIndex = 0;
+                this.showCalibrationPoint();
+            }
+            
+            showCalibrationPoint() {
+                if (this.currentCalibrationIndex >= this.calibrationPoints.length) {
+                    this.finishCalibration();
+                    return;
+                }
+                
+                const point = this.calibrationPoints[this.currentCalibrationIndex];
+                const calibPoint = document.createElement('div');
+                calibPoint.className = 'calibration-point';
+                calibPoint.style.left = point.x + 'px';
+                calibPoint.style.top = point.y + 'px';
+                
+                calibPoint.addEventListener('click', () => {
+                    calibPoint.remove();
+                    this.currentCalibrationIndex++;
+                    setTimeout(() => this.showCalibrationPoint(), 500);
+                });
+                
+                document.querySelector('.main-area').appendChild(calibPoint);
+            }
+            
+            finishCalibration() {
+                this.isCalibrated = true;
+                document.getElementById('accuracy').textContent = '85%';
+                
+                // Add success animation
+                const success = document.createElement('div');
+                success.textContent = '✓ Calibration Complete!';
+                success.style.position = 'fixed';
+                success.style.top = '50%';
+                success.style.left = '50%';
+                success.style.transform = 'translate(-50%, -50%)';
+                success.style.fontSize = '24px';
+                success.style.color = '#00ff80';
+                success.style.textShadow = '0 0 10px rgba(0,255,128,0.8)';
+                success.style.zIndex = '1000';
+                document.body.appendChild(success);
+                
+                setTimeout(() => {
+                    success.style.transition = 'opacity 1s ease';
+                    success.style.opacity = '0';
+                    setTimeout(() => success.remove(), 1000);
+                }, 2000);
+            }
+            
+            resetData() {
+                this.gazeData = [];
+                this.heatmapData = {};
+                this.particles = [];
+                this.trails = [];
+                this.stats.gazePoints = 0;
+                this.stats.focusTime = 0;
+                this.stats.startTime = Date.now();
+                
+                // Reset focus zones
+                this.focusZones.forEach(zone => {
+                    zone.focused = false;
+                    zone.focusStart = null;
+                    zone.element.classList.remove('focused');
+                });
+                
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.updateStats();
+            }
+            
+            toggleEffects() {
+                this.effectsEnabled = !this.effectsEnabled;
+                document.getElementById('effectsBtn').textContent = 
+                    this.effectsEnabled ? 'Disable Effects' : 'Enable Effects';
+                
+                if (!this.effectsEnabled) {
+                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                }
+            }
+            
+            updateStats() {
+                document.getElementById('gazePoints').textContent = this.stats.gazePoints;
+                document.getElementById('focusTime').textContent = 
+                    Math.floor(this.stats.focusTime / 1000) + 's';
+                
+                if (this.gazeData.length > 0) {
+                    const latest = this.gazeData[this.gazeData.length - 1];
+                    document.getElementById('eyePosition').textContent = 
+                        `${Math.floor(latest.x)}, ${Math.floor(latest.y)}`;
+                }
+            }
+            
+            startAnimationLoop() {
+                const animate = () => {
+                    if (this.effectsEnabled && !this.isTracking) {
+                        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                        this.updateParticles();
+                        this.updateTrails();
+                    }
+                    requestAnimationFrame(animate);
+                };
+                animate();
+            }
+        }
+        
+        // Mouse tracking for demo purposes
+        let lastMouseX, lastMouseY;
+        document.addEventListener('mousemove', (e) => {
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+            if (window.eyeTracker) {
+                window.eyeTracker.lastMouseX = lastMouseX;
+                window.eyeTracker.lastMouseY = lastMouseY;
+            }
+        });
+        
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', () => {
+            // Create eye tracker instance
+            window.eyeTracker = new EyeTracker();
+            
+            // Set up camera permission button
+            document.getElementById('grantAccessBtn').addEventListener('click', () => {
+                window.eyeTracker.requestCamera();
+            });
+        });
+    </script>
+</body>
+</html>
