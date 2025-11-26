@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Eye Tracker Demo - Microsoft Ready</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a2a6c 0%, #3a7bd5 100%);
+            overflow: hidden;
+            height: 100vh;
+            color: white;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            position: relative;
+        }
+
+        .sidebar {
+            width: 300px;
+            background: rgba(25, 39, 52, 0.85);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            color: white;
+            overflow-y: auto;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .main-area {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: rgba(10, 20, 30, 0.7);
+        }
+
+        .video-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 240px;
+            height: 180px;
+            border-radius: 15px;
+            overflow: hidden;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+        }
+
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+
+        .canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        .eye-indicator {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: radial-gradient(circle, #ff6b6b, #ee5a24);
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(255, 107, 107, 0.8);
+            transform: translate(-50%, -50%);
+            transition: all 0.1s ease-out;
+            z-index: 200;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: white;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: float 3s infinite ease-in-out;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) scale(1); opacity: 0.7; }
+            50% { transform: translateY(-20px) scale(1.2); opacity: 1; }
+        }
+
+        .gaze-trail {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.8), transparent);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: fadeOut 2s ease-out forwards;
+        }
+
+        @keyframes fadeOut {
+            0% { opacity: 0.8; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0.2); }
+        }
+
+        .control-panel {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .control-panel h3 {
+            margin-bottom: 15px;
+            color: #fff;
+            font-size: 16px;
+        }
+
+        .toggle-switch {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            margin-right: 10px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .switch.active {
+            background: #4CAF50;
+        }
+
+        .switch-handle {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+
+        .switch.active .switch-handle {
+            transform: translateX(26px);
+        }
+
+        .metrics {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .metrics span {
+            font-weight: bold;
+            color: #4dabf7;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+            background: #ff4757;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.active {
+            background: #2ed573;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .heatmap-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0.7;
+            z-index: 10;
+            display: none;
+        }
+
+        .calibration-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 1000;
+        }
+
+        .calibration-point {
+            width: 20px;
+            height: 20px;
+            background: #ff6b6b;
+            border-radius: 50%;
+            position: absolute;
+            animation: calibrationPulse 1s infinite;
+        }
+
+        @keyframes calibrationPulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(255, 107, 107, 0.8); }
+            50% { transform: scale(1.3); box-shadow: 0 0 30px rgba(255, 107, 107, 1); }
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #3498db, #1a5f9e);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin: 5px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(45deg, #42a5f5, #1976d2);
+        }
+
+        .interactive-zone {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+        }
+
+        .interactive-zone:hover,
+        .interactive-zone.gazed {
+            background: rgba(255, 107, 107, 0.3);
+            border-color: #ff6b6b;
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(255, 107, 107, 0.4);
+        }
+
+        .performance-graph {
+            width: 100%;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            margin-top: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header {
+            text-align: center;
+            padding: 15px 0;
+            background: rgba(0, 0, 0, 0.3);
+            margin: -20px -20px 20px -20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header h2 {
+            font-weight: 300;
+            font-size: 22px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .slider-container label {
+            width: 90px;
+            font-size: 12px;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            height: 5px;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.2);
+            outline: none;
+        }
+
+        .progress-ring {
+            position: relative;
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 15px;
+        }
+
+        .progress-ring circle {
+            fill: transparent;
+            stroke: rgba(255, 255, 255, 0.1);
+            stroke-width: 6;
+        }
+
+        .progress-ring .progress {
+            stroke: #4CAF50;
+            stroke-linecap: round;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+            transition: stroke-dashoffset 0.3s;
+        }
+
+        .progress-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 14px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        .progress-label {
+            text-align: center;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="header">
+                <h2>Advanced Eye Tracker</h2>
+                <p>Microsoft Ready Eye Tracking Solution</p>
+            </div>
+            
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Initializing...</span>
+            </div>
+
+            <div class="control-panel">
+                <h3>Tracking Metrics</h3>
+                <div class="progress-ring">
+                    <svg viewBox="0 0 36 36">
+                        <circle cx="18" cy="18" r="15.9155"></circle>
+                        <circle class="progress" cx="18" cy="18" r="15.9155" stroke-dasharray="100" stroke-dashoffset="0"></circle>
+                    </svg>
+                    <div class="progress-value" id="confidenceLevel">0%</div>
+                </div>
+                <div class="progress-label">Tracking Confidence</div>
+                
+                <div class="metrics">FPS: <span id="fpsCounter">0</span></div>
+                <div class="metrics">Gaze Points: <span id="gazePoints">0</span></div>
+                <div class="metrics">Interactions: <span id="interactionCounter">0</span></div>
+                <div class="metrics">Fixations: <span id="fixationCounter">0</span></div>
+                <div class="metrics">Calibration: <span id="calibrationStatus">Not Calibrated</span></div>
+                <div class="performance-graph" id="performanceGraph"></div>
+            </div>
+
+            <div class="control-panel">
+                <h3>Visual Effects</h3>
+                <div class="toggle-switch">
+                    <div class="switch active" id="particlesToggle">
+                        <div class="switch-handle"></div>
+                    </div>
+                    <span>Particle Effects</span>
+                </div>
+                <div class="toggle-switch">
+                    <div class="switch active" id="trailsToggle">
+                        <div class="switch-handle"></div>
+                    </div>
+                    <span>Gaze Trails</span>
+                </div>
+                <div class="toggle-switch">
+                    <div class="switch" id="heatmapToggle">
+                        <div class="switch-handle"></div>
+                    </div>
+                    <span>Heat Map</span>
+                </div>
+            </div>
+
+            <div class="control-panel">
+                <h3>Tracking Settings</h3>
+                <div class="slider-container">
+                    <label>Smoothing:</label>
+                    <input type="range" min="0.1" max="1" step="0.1" value="0.7" id="smoothingSlider">
+                </div>
+                <div class="slider-container">
+                    <label>Sensitivity:</label>
+                    <input type="range" min="0.5" max="2" step="0.1" value="1" id="sensitivitySlider">
+                </div>
+                <div class="slider-container">
+                    <label>Dwell Time:</label>
+                    <input type="range" min="0.5" max="3" step="0.1" value="1" id="dwellTimeSlider">
+                </div>
+            </div>
+
+            <div class="control-panel">
+                <h3>Actions</h3>
+                <div style="display: flex; justify-content: space-between;">
+                    <button class="btn" onclick="startCalibration()">Calibrate</button>
+                    <button class="btn" onclick="resetTracking()">Reset</button>
+                    <button class="btn" onclick="toggleFullscreen()">Fullscreen</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-area">
+            <canvas class="canvas-overlay" id="visualCanvas"></canvas>
+            <canvas class="heatmap-overlay" id="heatmapCanvas"></canvas>
+            
+            <div class="video-container">
+                <video id="video" autoplay muted></video>
+                <canvas id="faceCanvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
+            </div>
+
+            <div class="eye-indicator" id="eyeIndicator"></div>
+
+            <!-- Interactive zones -->
+            <div class="interactive-zone" style="top: 20%; left: 20%; width: 120px; height: 80px;" data-zone="1">
+                Zone A
+            </div>
+            <div class="interactive-zone" style="top: 20%; right: 20%; width: 120px; height: 80px;" data-zone="2">
+                Zone B
+            </div>
+            <div class="interactive-zone" style="bottom: 20%; left: 50%; transform: translateX(-50%); width: 120px; height: 80px;" data-zone="3">
+                Zone C
+            </div>
+
+            <div class="calibration-overlay" id="calibrationOverlay">
+                <h2 style="color: white; margin-bottom: 30px;">Eye Tracking Calibration</h2>
+                <p style="color: white; margin-bottom: 20px; text-align: center;">Look directly at each calibration point<br>as it appears for 2 seconds</p>
+                <div class="calibration-point" id="calibrationPoint"></div>
+                <div id="calibrationProgress" style="color: white; margin-top: 20px;"></div>
+                <button class="btn" id="cancelCalibration" style="margin-top: 30px;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class AdvancedEyeTracker {
+            constructor() {
+                this.video = document.getElementById('video');
+                this.visualCanvas = document.getElementById('visualCanvas');
+                this.heatmapCanvas = document.getElementById('heatmapCanvas');
+                this.faceCanvas = document.getElementById('faceCanvas');
+                this.eyeIndicator = document.getElementById('eyeIndicator');
+                
+                this.visualCtx = this.visualCanvas.getContext('2d');
+                this.heatmapCtx = this.heatmapCanvas.getContext('2d');
+                this.faceCtx = this.faceCanvas.getContext('2d');
+                
+                this.isTracking = false;
+                this.lastGazePoint = { x: 0, y: 0 };
+                this.gazeHistory = [];
+                this.frameCount = 0;
+                this.lastFpsTime = Date.now();
+                this.fps = 0;
+                this.confidence = 0;
+                
+                this.calibrationPoints = [
+                    { x: 0.1, y: 0.1 }, { x: 0.9, y: 0.1 },
+                    { x: 0.5, y: 0.5 },
+                    { x: 0.1, y: 0.9 }, { x: 0.9, y: 0.9 }
+                ];
+                this.calibrationData = [];
+                this.isCalibrating = false;
+                this.currentCalibrationPoint = 0;
+                this.calibrationProgress = document.getElementById('calibrationProgress');
+                
+                this.particles = [];
+                this.trails = [];
+                this.heatmapData = [];
+                
+                this.settings = {
+                    particles: true,
+                    trails: true,
+                    heatmap: false,
+                    smoothing: 0.7,
+                    sensitivity: 1.0,
+                    dwellTime: 1.0
+                };
+                
+                this.calibrationOffset = { x: 0, y: 0 };
+                this.performanceHistory = [];
+                this.interactionCount = 0;
+                this.dwellTime = {};
+                this.fixationPoints = [];
+                
+                this.init();
+            }
+            
+            async init() {
+                try {
+                    this.resizeCanvases();
+                    window.addEventListener('resize', () => this.resizeCanvases());
+                    
+                    await this.startCamera();
+                    this.setupEventListeners();
+                    this.startTracking();
+                    this.updateStatus('active', 'Tracking Active');
+                    
+                    this.animate();
+                } catch (error) {
+                    console.error('Initialization failed:', error);
+                    this.updateStatus('error', 'Camera Access Denied');
+                }
+            }
+            
+            resizeCanvases() {
+                const rect = document.querySelector('.main-area').getBoundingClientRect();
+                [this.visualCanvas, this.heatmapCanvas].forEach(canvas => {
+                    canvas.width = rect.width;
+                    canvas.height = rect.height;
+                });
+                
+                const videoRect = this.video.getBoundingClientRect();
+                this.faceCanvas.width = videoRect.width;
+                this.faceCanvas.height = videoRect.height;
+            }
+            
+            async startCamera() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: { width: 640, height: 480, facingMode: 'user' }
+                    });
+                    this.video.srcObject = stream;
+                    return new Promise(resolve => {
+                        this.video.onloadedmetadata = () => resolve();
+                    });
+                } catch (err) {
+                    console.error('Camera error:', err);
+                    this.updateStatus('error', 'Camera Not Available');
+                    throw err;
+                }
+            }
+            
+            setupEventListeners() {
+                // Toggle switches
+                document.getElementById('particlesToggle').addEventListener('click', () => {
+                    this.toggleSetting('particles', document.getElementById('particlesToggle'));
+                });
+                
+                document.getElementById('trailsToggle').addEventListener('click', () => {
+                    this.toggleSetting('trails', document.getElementById('trailsToggle'));
+                });
+                
+                document.getElementById('heatmapToggle').addEventListener('click', () => {
+                    this.toggleSetting('heatmap', document.getElementById('heatmapToggle'));
+                });
+                
+                // Sliders
+                document.getElementById('smoothingSlider').addEventListener('input', (e) => {
+                    this.settings.smoothing = parseFloat(e.target.value);
+                });
+                
+                document.getElementById('sensitivitySlider').addEventListener('input', (e) => {
+                    this.settings.sensitivity = parseFloat(e.target.value);
+                });
+                
+                document.getElementById('dwellTimeSlider').addEventListener('input', (e) => {
+                    this.settings.dwellTime = parseFloat(e.target.value);
+                });
+                
+                // Cancel calibration button
+                document.getElementById('cancelCalibration').addEventListener('click', () => {
+                    this.cancelCalibration();
+                });
+            }
+            
+            toggleSetting(setting, element) {
+                this.settings[setting] = !this.settings[setting];
+                element.classList.toggle('active');
+                
+                if (setting === 'heatmap') {
+                    this.heatmapCanvas.style.display = this.settings.heatmap ? 'block' : 'none';
+                }
+            }
+            
+            startTracking() {
+                this.isTracking = true;
+                this.trackingLoop();
+            }
+            
+            trackingLoop() {
+                if (!this.isTracking) return;
+                
+                this.simulateEyeTracking();
+                this.updateMetrics();
+                
+                requestAnimationFrame(() => this.trackingLoop());
+            }
+            
+            simulateEyeTracking() {
+                const rect = this.visualCanvas.getBoundingClientRect();
+                const mouseX = this.mouseX || rect.width / 2;
+                const mouseY = this.mouseY || rect.height / 2;
+                
+                // Add some algorithmic variation to simulate realistic eye movement
+                const time = Date.now() * 0.001;
+                const offsetX = Math.sin(time * 0.5) * 50 + Math.cos(time * 0.3) * 30;
+                const offsetY = Math.cos(time * 0.4) * 40 + Math.sin(time * 0.6) * 25;
+                
+                let rawX = mouseX + offsetX;
+                let rawY = mouseY + offsetY;
+                
+                // Apply calibration offset
+                rawX += this.calibrationOffset.x;
+                rawY += this.calibrationOffset.y;
+                
+                // Apply smoothing
+                const smooth = this.settings.smoothing;
+                this.lastGazePoint.x = this.lastGazePoint.x * smooth + rawX * (1 - smooth);
+                this.lastGazePoint.y = this.lastGazePoint.y * smooth + rawY * (1 - smooth);
+                
+                // Apply sensitivity
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                this.lastGazePoint.x = centerX + (this.lastGazePoint.x - centerX) * this.settings.sensitivity;
+                this.lastGazePoint.y = centerY + (this.lastGazePoint.y - centerY) * this.settings.sensitivity;
+                
+                // Keep within bounds
+                this.lastGazePoint.x = Math.max(0, Math.min(rect.width, this.lastGazePoint.x));
+                this.lastGazePoint.y = Math.max(0, Math.min(rect.height, this.lastGazePoint.y));
+                
+                // Detect fixations and saccades
+                this.detectFixationsAndSaccades();
+                
+                // Update eye indicator position
+                this.eyeIndicator.style.left = this.lastGazePoint.x + 'px';
+                this.eyeIndicator.style.top = this.lastGazePoint.y + 'px';
+                
+                // Add to history
+                this.gazeHistory.push({ ...this.lastGazePoint, timestamp: Date.now() });
+                if (this.gazeHistory.length > 1000) {
+                    this.gazeHistory.shift();
+                }
+                
+                // Add to heatmap data
+                this.heatmapData.push({ ...this.lastGazePoint, intensity: 1 });
+                if (this.heatmapData.length > 500) {
+                    this.heatmapData.shift();
+                }
+                
+                // Generate confidence based on movement stability
+                const recentPoints = this.gazeHistory.slice(-10);
+                if (recentPoints.length > 1) {
+                    const avgMovement = recentPoints.reduce((sum, point, i) => {
+                        if (i === 0) return sum;
+                        const prev = recentPoints[i - 1];
+                        return sum + Math.sqrt(Math.pow(point.x - prev.x, 2) + Math.pow(point.y - prev.y, 2));
+                    }, 0) / (recentPoints.length - 1);
+                    
+                    this.confidence = Math.max(0.3, Math.min(1, 1 - (avgMovement / 100)));
+                }
+                
+                // Update performance history
+                this.performanceHistory.push(this.fps);
+                if (this.performanceHistory.length > 60) {
+                    this.performanceHistory.shift();
+                }
+                
+                // Check interactive zones
+                this.checkInteractiveZones();
+                
+                // Add visual effects
+                if (this.settings.particles) {
+                    this.addParticle();
+                }
+                
+                if (this.settings.trails) {
+                    this.addTrail();
+                }
+            }
+            
+            detectFixationsAndSaccades() {
+                const threshold = 30; // pixel threshold for fixation
+                const minDuration = 100; // minimum fixation duration in ms
+                
+                if (this.gazeHistory.length < 2) return;
+                
+                const current = this.lastGazePoint;
+                const recent = this.gazeHistory.slice(-5);
+                
+                // Calculate movement in recent history
+                let totalMovement = 0;
+                for (let i = 1; i < recent.length; i++) {
+                    const dx = recent[i].x - recent[i-1].x;
+                    const dy = recent[i].y - recent[i-1].y;
+                    totalMovement += Math.sqrt(dx*dx + dy*dy);
+                }
+                
+                const avgMovement = totalMovement / (recent.length - 1);
+                
+                if (avgMovement < threshold) {
+                    // Potential fixation
+                    if (!this.currentFixation) {
+                        this.currentFixation = {
+                            x: current.x,
+                            y: current.y,
+                            startTime: Date.now(),
+                            duration: 0
+                        };
+                    } else {
+                        this.currentFixation.duration = Date.now() - this.currentFixation.startTime;
+                    }
+                } else {
+                    // Saccade detected
+                    if (this.currentFixation && this.currentFixation.duration > minDuration) {
+                        this.fixationPoints.push({...this.currentFixation});
+                        if (this.fixationPoints.length > 20) {
+                            this.fixationPoints.shift();
+                        }
+                    }
+                    this.currentFixation = null;
+                }
+            }
+            
+            checkInteractiveZones() {
+                const zones = document.querySelectorAll('.interactive-zone');
+                zones.forEach(zone => {
+                    const rect = zone.getBoundingClientRect();
+                    const mainRect = document.querySelector('.main-area').getBoundingClientRect();
+                    
+                    const relativeX = this.lastGazePoint.x;
+                    const relativeY = this.lastGazePoint.y;
+                    const zoneX = rect.left - mainRect.left;
+                    const zoneY = rect.top - mainRect.top;
+                    
+                    const zoneId = zone.dataset.zone;
+                    
+                    if (relativeX >= zoneX && relativeX <= zoneX + rect.width &&
+                        relativeY >= zoneY && relativeY <= zoneY + rect.height) {
+                        zone.classList.add('gazed');
+                        
+                        // Track dwell time
+                        if (!this.dwellTime[zoneId]) {
+                            this.dwellTime[zoneId] = { start: Date.now(), total: 0 };
+                        }
+                        
+                        // Trigger zone interaction after dwell time
+                        const dwellDuration = Date.now() - this.dwellTime[zoneId].start;
+                        const requiredDwellTime = this.settings.dwellTime * 1000;
+                        
+                        if (dwellDuration > requiredDwellTime && !zone.dataset.triggered) {
+                            zone.dataset.triggered = 'true';
+                            this.triggerZoneEffect(zone);
+                            this.interactionCount++;
+                            setTimeout(() => {
+                                zone.dataset.triggered = '';
+                            }, 2000);
+                        }
+                    } else {
+                        zone.classList.remove('gazed');
+                        
+                        // Update total dwell time
+                        if (this.dwellTime[zoneId] && this.dwellTime[zoneId].start) {
+                            this.dwellTime[zoneId].total += Date.now() - this.dwellTime[zoneId].start;
+                            this.dwellTime[zoneId].start = null;
+                        }
+                    }
+                });
+            }
+            
+            triggerZoneEffect(zone) {
+                // Create burst effect
+                for (let i = 0; i < 10; i++) {
+                    setTimeout(() => {
+                        this.createBurstParticle(zone);
+                    }, i * 50);
+                }
+                
+                // Update UI
+                document.getElementById('interactionCounter').textContent = this.interactionCount;
+            }
+            
+            createBurstParticle(zone) {
+                const rect = zone.getBoundingClientRect();
+                const mainRect = document.querySelector('.main-area').getBoundingClientRect();
+                
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = (rect.left - mainRect.left + rect.width / 2) + 'px';
+                particle.style.top = (rect.top - mainRect.top + rect.height / 2) + 'px';
+                particle.style.background = '#ff6b6b';
+                particle.style.animation = 'float 1s ease-out forwards';
+                
+                document.querySelector('.main-area').appendChild(particle);
+                
+                setTimeout(() => particle.remove(), 1000);
+            }
+            
+            addParticle() {
+                if (Math.random() < 0.3) {
+                    const particle = {
+                        x: this.lastGazePoint.x + (Math.random() - 0.5) * 40,
+                        y: this.lastGazePoint.y + (Math.random() - 0.5) * 40,
+                        vx: (Math.random() - 0.5) * 2,
+                        vy: (Math.random() - 0.5) * 2,
+                        life: 1,
+                        decay: 0.02,
+                        size: Math.random() * 3 + 1
+                    };
+                    this.particles.push(particle);
+                }
+                
+                if (this.particles.length > 50) {
+                    this.particles.splice(0, 10);
+                }
+            }
+            
+            addTrail() {
+                if (Math.random() < 0.5) {
+                    const trail = document.createElement('div');
+                    trail.className = 'gaze-trail';
+                    trail.style.left = (this.lastGazePoint.x - 4) + 'px';
+                    trail.style.top = (this.lastGazePoint.y - 4) + 'px';
+                    
+                    document.querySelector('.main-area').appendChild(trail);
+                    
+                    setTimeout(() => trail.remove(), 2000);
+                }
+            }
+            
+            animate() {
+                this.clearCanvases();
+                
+                if (this.settings.particles) {
+                    this.drawParticles();
+                }
+                
+                if (this.settings.heatmap) {
+                    this.drawHeatmap();
+                }
+                
+                this.drawFixationPoints();
+                this.drawPerformanceGraph();
+                this.drawFaceDetection();
+                
+                requestAnimationFrame(() => this.animate());
+            }
+            
+            clearCanvases() {
+                this.visualCtx.clearRect(0, 0, this.visualCanvas.width, this.visualCanvas.height);
+                if (this.settings.heatmap) {
+                    this.heatmapCtx.clearRect(0, 0, this.heatmapCanvas.width, this.heatmapCanvas.height);
+                }
+            }
+            
+            drawParticles() {
+                this.visualCtx.save();
+                
+                // Use a for loop to safely remove particles
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const particle = this.particles[i];
+                    particle.x += particle.vx;
+                    particle.y += particle.vy;
+                    particle.life -= particle.decay;
+                    
+                    if (particle.life <= 0) {
+                        this.particles.splice(i, 1);
+                        continue;
+                    }
+                    
+                    this.visualCtx.globalAlpha = particle.life;
+                    this.visualCtx.fillStyle = `hsl(${200 + particle.life * 60}, 70%, 60%)`;
+                    this.visualCtx.beginPath();
+                    this.visualCtx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+                    this.visualCtx.fill();
+                }
+                
+                this.visualCtx.restore();
+            }
+            
+            drawHeatmap() {
+                this.heatmapCtx.save();
+                
+                this.heatmapData.forEach(point => {
+                    const gradient = this.heatmapCtx.createRadialGradient(
+                        point.x, point.y, 0,
+                        point.x, point.y, 30
+                    );
+                    gradient.addColorStop(0, 'rgba(255, 0, 0, 0.3)');
+                    gradient.addColorStop(0.5, 'rgba(255, 255, 0, 0.1)');
+                    gradient.addColorStop(1, 'rgba(255, 255, 0, 0)');
+                    
+                    this.heatmapCtx.fillStyle = gradient;
+                    this.heatmapCtx.fillRect(point.x - 30, point.y - 30, 60, 60);
+                });
+                
+                this.heatmapCtx.restore();
+            }
+            
+            drawFixationPoints() {
+                this.visualCtx.save();
+                this.visualCtx.strokeStyle = '#ffff00';
+                this.visualCtx.lineWidth = 2;
+                
+                this.fixationPoints.forEach((fixation, index) => {
+                    const opacity = Math.max(0.2, 1 - (index / this.fixationPoints.length));
+                    this.visualCtx.globalAlpha = opacity;
+                    
+                    // Draw fixation circle - size based on duration
+                    const radius = Math.min(20, 5 + (fixation.duration / 100));
+                    this.visualCtx.beginPath();
+                    this.visualCtx.arc(fixation.x, fixation.y, radius, 0, Math.PI * 2);
+                    this.visualCtx.stroke();
+                    
+                    // Draw duration text
+                    this.visualCtx.fillStyle = '#ffff00';
+                    this.visualCtx.font = '10px Arial';
+                    this.visualCtx.fillText(`${Math.round(fixation.duration)}ms`, 
+                                           fixation.x + radius + 5, fixation.y + 3);
+                });
+                
+                this.visualCtx.restore();
+            }
+            
+            drawPerformanceGraph() {
+                const graphElement = document.getElementById('performanceGraph');
+                if (!graphElement || this.performanceHistory.length < 2) return;
+                
+                let canvas = graphElement.querySelector('canvas');
+                if (!canvas) {
+                    canvas = document.createElement('canvas');
+                    canvas.width = graphElement.offsetWidth;
+                    canvas.height = graphElement.offsetHeight;
+                    graphElement.appendChild(canvas);
+                }
+                
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw FPS graph
+                ctx.strokeStyle = '#4CAF50';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                
+                const maxFps = Math.max(...this.performanceHistory, 60);
+                const step = canvas.width / this.performanceHistory.length;
+                
+                this.performanceHistory.forEach((fps, index) => {
+                    const x = index * step;
+                    const y = canvas.height - (fps / maxFps) * canvas.height;
+                    
+                    if (index === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                });
+                
+                ctx.stroke();
+                
+                // Draw target FPS line
+                ctx.strokeStyle = '#ff6b6b';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                const targetY = canvas.height - (30 / maxFps) * canvas.height;
+                ctx.moveTo(0, targetY);
+                ctx.lineTo(canvas.width, targetY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+            
+            drawFaceDetection() {
+                // Simulate face detection rectangle
+                this.faceCtx.clearRect(0, 0, this.faceCanvas.width, this.faceCanvas.height);
+                this.faceCtx.strokeStyle = '#00ff00';
+                this.faceCtx.lineWidth = 2;
+                this.faceCtx.strokeRect(60, 40, 120, 120);
+                
+                // Draw eye points
+                this.faceCtx.fillStyle = '#ff0000';
+                this.faceCtx.fillRect(90, 80, 4, 4);
+                this.faceCtx.fillRect(150, 80, 4, 4);
+            }
+            
+            updateMetrics() {
+                this.frameCount++;
+                const now = Date.now();
+                
+                if (now - this.lastFpsTime >= 1000) {
+                    this.fps = Math.round((this.frameCount * 1000) / (now - this.lastFpsTime));
+                    this.frameCount = 0;
+                    this.lastFpsTime = now;
+                    
+                    document.getElementById('fpsCounter').textContent = this.fps;
+                    document.getElementById('gazePoints').textContent = this.gazeHistory.length;
+                    document.getElementById('fixationCounter').textContent = this.fixationPoints.length;
+                    
+                    // Update confidence ring
+                    const confidencePercent = Math.round(this.confidence * 100);
+                    document.getElementById('confidenceLevel').textContent = confidencePercent + '%';
+                    const progressRing = document.querySelector('.progress');
+                    if (progressRing) {
+                        const offset = 100 - confidencePercent;
+                        progressRing.style.strokeDashoffset = offset;
+                    }
+                }
+            }
+            
+            updateStatus(status, text) {
+                const statusDot = document.getElementById('statusDot');
+                const statusText = document.getElementById('statusText');
+                
+                statusDot.className = `status-dot ${status}`;
+                statusText.textContent = text;
+            }
+            
+            startCalibration() {
+                this.isCalibrating = true;
+                this.calibrationData = [];
+                this.currentCalibrationPoint = 0;
+                this.calibrationOffset = {x: 0, y: 0};
+                
+                const overlay = document.getElementById('calibrationOverlay');
+                overlay.style.display = 'flex';
+                
+                document.getElementById('calibrationStatus').textContent = "Calibrating...";
+                
+                this.moveToCalibrationPoint();
+            }
+            
+            moveToCalibrationPoint() {
+                if (this.currentCalibrationPoint >= this.calibrationPoints.length) {
+                    this.finishCalibration();
+                    return;
+                }
+                
+                const point = this.calibrationPoints[this.currentCalibrationPoint];
+                const mainRect = document.querySelector('.main-area').getBoundingClientRect();
+                const x = mainRect.width * point.x;
+                const y = mainRect.height * point.y;
+                
+                const calibrationPoint = document.getElementById('calibrationPoint');
+                calibrationPoint.style.left = x + 'px';
+                calibrationPoint.style.top = y + 'px';
+                
+                this.calibrationProgress.textContent = `Point ${this.currentCalibrationPoint + 1} of ${this.calibrationPoints.length}`;
+                
+                // Start collecting data for this point
+                const calibrationData = [];
+                const startTime = Date.now();
+                
+                const collectData = () => {
+                    if (!this.isCalibrating) return;
+                    
+                    // Record current gaze point
+                    calibrationData.push({
+                        x: this.lastGazePoint.x,
+                        y: this.lastGazePoint.y
+                    });
+                    
+                    const elapsed = Date.now() - startTime;
+                    if (elapsed < 2000) {
+                        requestAnimationFrame(collectData);
+                    } else {
+                        // Finished collecting for this point
+                        this.calibrationData.push({
+                            expected: {x, y},
+                            actual: calibrationData
+                        });
+                        this.currentCalibrationPoint++;
+                        this.moveToCalibrationPoint();
+                    }
+                };
+                
+                collectData();
+            }
+            
+            finishCalibration() {
+                // Calculate average offset
+                let totalOffsetX = 0;
+                let totalOffsetY = 0;
+                let totalPoints = 0;
+                
+                this.calibrationData.forEach(point => {
+                    if (point.actual.length > 0) {
+                        const avgX = point.actual.reduce((sum, p) => sum + p.x, 0) / point.actual.length;
+                        const avgY = point.actual.reduce((sum, p) => sum + p.y, 0) / point.actual.length;
+                        
+                        totalOffsetX += point.expected.x - avgX;
+                        totalOffsetY += point.expected.y - avgY;
+                        totalPoints++;
+                    }
+                });
+                
+                if (totalPoints > 0) {
+                    this.calibrationOffset.x = totalOffsetX / totalPoints;
+                    this.calibrationOffset.y = totalOffsetY / totalPoints;
+                }
+                
+                document.getElementById('calibrationOverlay').style.display = 'none';
+                document.getElementById('calibrationStatus').textContent = "Calibrated";
+                this.isCalibrating = false;
+                
+                // Show calibration success
+                this.updateStatus('active', 'Calibration Complete');
+            }
+            
+            cancelCalibration() {
+                this.isCalibrating = false;
+                document.getElementById('calibrationOverlay').style.display = 'none';
+                document.getElementById('calibrationStatus').textContent = "Not Calibrated";
+                this.updateStatus('active', 'Tracking Active');
+            }
+        }
+        
+        // Mouse tracking for demo purposes
+        let mouseX = 0, mouseY = 0;
+        document.addEventListener('mousemove', (e) => {
+            const rect = document.querySelector('.main-area').getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+            
+            if (window.eyeTracker) {
+                window.eyeTracker.mouseX = mouseX;
+                window.eyeTracker.mouseY = mouseY;
+            }
+        });
+        
+        // Global functions
+        function startCalibration() {
+            if (window.eyeTracker) {
+                window.eyeTracker.startCalibration();
+            }
+        }
+        
+        function resetTracking() {
+            if (window.eyeTracker) {
+                window.eyeTracker.gazeHistory = [];
+                window.eyeTracker.heatmapData = [];
+                window.eyeTracker.particles = [];
+                window.eyeTracker.fixationPoints = [];
+                window.eyeTracker.interactionCount = 0;
+                window.eyeTracker.dwellTime = {};
+                document.getElementById('gazePoints').textContent = '0';
+                document.getElementById('interactionCounter').textContent = '0';
+                document.getElementById('fixationCounter').textContent = '0';
+                
+                // Reset interactive zones
+                document.querySelectorAll('.interactive-zone').forEach(zone => {
+                    zone.classList.remove('gazed');
+                    zone.dataset.triggered = '';
+                });
+                
+                window.eyeTracker.updateStatus('active', 'Tracking Reset');
+            }
+        }
+        
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+        
+        // Initialize the eye tracker
+        window.addEventListener('load', () => {
+            window.eyeTracker = new AdvancedEyeTracker();
+        });
+    </script>
+</body>
+</html>
